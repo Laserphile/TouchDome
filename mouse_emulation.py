@@ -4,12 +4,15 @@ import pyautogui
 cam = Camera()
 disp = Display()
 
+mask = Image("round_mask_1920_1080.png").invert()
+
 while disp.isNotDone():
         img = cam.getImage()
         img = img.greyscale()
-        img = img.crop(x=960,y=540,w=1080,h=1080,centered=True)
+        img = mask + img
+        #img = img.crop(x=960,y=540,w=1080,h=1080,centered=True)
         img = img.flipHorizontal()
-        img = img.scale(200,200)
+        img = img.scale(384,216)
         comparison_img = img
         if disp.mouseLeft:
             break
@@ -20,9 +23,10 @@ time.sleep(1)
 while disp.isNotDone():
         img = cam.getImage()
         img = img.greyscale()
-        img = img.crop(x=960,y=540,w=1080,h=1080,centered=True)
+        img = mask + img
+        #img = img.crop(x=960,y=540,w=1080,h=1080,centered=True)
         img = img.flipHorizontal()
-        img = img.scale(200,200)
+        img = img.scale(384,216)
         result = img - comparison_img
         result = result * 6
         result = result.binarize(60)
@@ -40,7 +44,7 @@ while disp.isNotDone():
                 finger_coords = np.delete(finger_coords, 2, 0)
                 x = np.delete(finger_coords, 1, 0)
                 y = np.delete(finger_coords, 0, 0)
-                pyautogui.moveTo(x*10, y*6) # Drives the host OS cursor
+                pyautogui.moveTo(x*10-384, y*10-216) # Drives the host OS cursor
 
                 print finger_coords
         if disp.mouseLeft:
