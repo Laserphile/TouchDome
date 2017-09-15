@@ -33,6 +33,13 @@ while(True):
     frame = cv2.bitwise_and(frame, frame, mask = mask)
     #frame = cv2.resize(frame, (200,200), fx=1, fy=1)
 
+    matrix = np.asarray(frame)
+    matrix_coords = zip(*np.where(matrix == 255))
+    #print matrix
+    if matrix_coords:
+            x = matrix_coords[(0)]
+            print x
+
     # Display the resulting frame
     cv2.imshow('frame',frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):

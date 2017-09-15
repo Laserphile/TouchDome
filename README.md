@@ -1,5 +1,5 @@
 A camera is used to record touches on a semi-transparent surface.
-Python and SimpleCV used for image processing.
+Python and OpenCV used for image processing.
 Mostly test scripts at the moment.
 touch_detect.py shows clear image of touch.
 touch_coordinates.py pulls touch coordinates from the image in x and y pixels
