@@ -1,56 +1,37 @@
-'''
-This is how to track a white ball example using SimpleCV
-The parameters may need to be adjusted to match the RGB color
-of your object.
-The demo video can be found at:
-'''
-print __doc__
+import cv2
+import numpy as np
 
-from SimpleCV import *
+def nothing(x):
+    pass
 
-display = SimpleCV.Display() #create the display to show the image
-cam = SimpleCV.Camera() # initalize the camera
-normaldisplay = True # mode toggle for segment detection and display
+# Create a black image, a window
+img = np.zeros((300,512,3), np.uint8)
+cv2.namedWindow('image')
 
-while display.isNotDone():
-        img = cam.getImage()
-        img = img.greyscale()
-        img = img.crop(x=960,y=540,w=1080,h=1080,centered=True)
-        img = img.flipHorizontal()
-        img = img.scale(200,200)
-        comparison_img = img
-        if display.mouseLeft:
-            break
-        img.save(display)
+# create trackbars for color change
+cv2.createTrackbar('R','image',0,255,nothing)
+cv2.createTrackbar('G','image',0,255,nothing)
+cv2.createTrackbar('B','image',0,255,nothing)
 
-time.sleep(1)
+# create switch for ON/OFF functionality
+switch = '0 : OFF \n1 : ON'
+cv2.createTrackbar(switch, 'image',0,1,nothing)
 
-while display.isNotDone(): # loop until we tell the program to stop
+while(1):
+    cv2.imshow('image',img)
+    k = cv2.waitKey(1) & 0xFF
+    if k == 27:
+        break
 
-    if display.mouseRight: # if right mouse clicked, change mode
-        normaldisplay = not(normaldisplay)
-        print "Display Mode:", "Normal" if normaldisplay else "Segmented"
+    # get current positions of four trackbars
+    r = cv2.getTrackbarPos('R','image')
+    g = cv2.getTrackbarPos('G','image')
+    b = cv2.getTrackbarPos('B','image')
+    s = cv2.getTrackbarPos(switch,'image')
 
-    #img = cam.getImage().flipHorizontal() # grab image from camera
-    img = cam.getImage()
-    img = img.greyscale()
-    img = img.crop(x=960,y=540,w=1080,h=1080,centered=True)
-    img = img.flipHorizontal()
-    img = img.scale(200,200)
-    result = img - comparison_img
-    result = result * 6
-    result = result.binarize(60)
-    segmented = result.invert()
+    if s == 0:
+        img[:] = 0
+    else:
+        img[:] = [b,g,r]
 
-    #dist = img.colorDistance(SimpleCV.Color.BLACK).dilate(2) # try to separate colors in image
-    #segmented = dist.stretch(200,255) # really try to push out white colors
-    blobs = segmented.findBlobs() # search the image for blob objects
-    if blobs: # if blobs are found
-        circles = blobs.filter([b.isCircle(0.2) for b in blobs]) # filter out only circle shaped blobs
-        if circles:
-            img.drawCircle((circles[-1].x, circles[-1].y), circles[-1].radius(),SimpleCV.Color.BLUE,3) # draw the circle on the main image
-
-    if normaldisplay: # if normal display mode
-        img.show()
-    else: # segmented mode
-        segmented.show()
+cv2.destroyAllWindows()

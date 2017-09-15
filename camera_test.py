@@ -1,16 +1,21 @@
-from SimpleCV import *
+import numpy as np
+import cv2
 
-cam = Camera()
-disp = Display()
+cap = cv2.VideoCapture(0)
 
-while disp.isNotDone():
-        img = cam.getImage()
-        img = img.greyscale()
-        #img = img.crop(x=960,y=540,w=1080,h=1080,centered=True)
-        img = img.flipHorizontal()
-        #img = img.scale(400,400)
-        #img = img.binarize(50)
+while(True):
+    # Capture frame-by-frame
+    ret, frame = cap.read()
 
-        if disp.mouseLeft:
-            break
-        img.save(disp)
+    # Our operations on the frame come here
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    gray = cv2.flip(gray,1)
+
+    # Display the resulting frame
+    cv2.imshow('frame',gray)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+# When everything done, release the capture
+cap.release()
+cv2.destroyAllWindows()
