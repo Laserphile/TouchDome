@@ -2,6 +2,9 @@
 # Using mouse clicks associate that pixel coordinate with an arbitrary pixel number.
 # Mark down the transition to new groups of pixels
 
+TODO:
+    dssdsd
+
 import numpy as np
 import cv2
 
@@ -34,8 +37,10 @@ while(1):
     cv2.imshow('image',img)
     k = cv2.waitKey(20) & 0xFF
     if k == 27:
-        np.savetxt('pixels.txt', b)
-        np.save('pixels', b)
+        print "Enter a file name:",
+        filename = raw_input()
+        np.savetxt(filename, b)
+        np.save(filename, b)
         break
     elif k == ord('a'):
         print array
