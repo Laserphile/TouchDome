@@ -1,4 +1,4 @@
-# Input pixel coordinates and video
+# Input pixel coordinates and image (todo: get video working)
 # Output pixel RGB values to serial port
 import cv2
 import serial
@@ -13,18 +13,26 @@ capture = cv2.VideoCapture()
 num_pixels = pixel_array[0]
 num_pixels = num_pixels[2]
 ret, frame = capture.read()
-while(True):
 
+print(ser.name)
+ser.write('hello')
+s = ser.readline()
+print s
 
-    for i in range(0, num_pixels):
-        pixel_coord = pixel_array[i]
-        pixel_coord = np.delete(pixel_coord, 2, 0)
-        x = pixel_coord[0]
-        y = pixel_coord[1]
-        #pixel_RGB = np.take(frame, [x,y])
-        #print pixel_RGB
+#while(True):
+s = ser.readline()
+print s
 
-    cv2.imshow('frame',frame)
+for i in range(0, num_pixels):
+    pixel_coord = pixel_array[i]
+    pixel_coord = np.delete(pixel_coord, 2, 0)
+    x = pixel_coord[0]
+    y = pixel_coord[1]
+    pixel_RGB = np.take(img, [x,y])
+    #print pixel_RGB
+    print pixel_RGB
+
+    #cv2.imshow('frame',frame)
 
 
 #print l

@@ -6,9 +6,9 @@ print(ser.name)         # check which port was really used
 #s = ser.read(100)
 s = ser.readline()
 print s
-array = np.load('pixels.npy')
-ser.writelines(array)
-#ser.write(b'hello\n')     # write a string
+#pixel_array = np.load('pixels.npy')
+#ser.writelines(array)
+ser.write(b'hello\n')     # write a string
 s = ser.readline()
 print s
 ser.close()             # close port

@@ -1,9 +1,14 @@
 # Take an image and resize to something sane
 # Using mouse clicks associate that pixel coordinate with an arbitrary pixel number.
-# Mark down the transition to new groups of pixels
 
-TODO:
-    dssdsd
+# TODO
+# Make a line tool that allows you to stretch an arbitrary number of pixels between two mouse clicks 
+# Use a button press to mark down the transition to new groups of pixels
+# Make a "snap" grid that is a few pixels wide to allow for easier vertical/horizontal alignment
+# Allow resizing of loaded image (can easily do this manually beforehand)
+#
+#
+
 
 import numpy as np
 import cv2
