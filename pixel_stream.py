@@ -1,5 +1,6 @@
 # Input pixel coordinates and image (todo: get video working)
 # Output pixel RGB values to serial port
+
 import cv2
 import serial
 import numpy as np

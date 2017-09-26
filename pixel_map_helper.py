@@ -33,7 +33,7 @@ def draw_circle(event, x, y):
         mouseX, mouseY = x, y
 
 
-img = cv2.imread('h2o_sign.png', 1)
+img = cv2.imread('Images/h2o_sign.png', 1)
 
 cv2.namedWindow('image')
 cv2.setMouseCallback('image', draw_circle)
