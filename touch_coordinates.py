@@ -1,8 +1,8 @@
 import numpy as np
 import cv2
 
-cap = cv2.VideoCapture()
-mask = cv2.imread('round_mask_1920_1080.png', 0)
+cap = cv2.VideoCapture(0)
+mask = cv2.imread('Images/round_mask_1920_1080.png', 0)
 
 while True:
     # Capture frame-by-frame
@@ -21,17 +21,18 @@ while True:
 
 while True:
     # Capture frame-by-frame
-    frame = cap.read()
+    ret, frame = cap.read()
 
     # Our operations on the frame come here
-    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    current_frame = cv2.flip(frame, 1)
-    current_frame = current_frame * 0.9
-    frame = current_frame - calibrate_frame
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) * 0.89
+    frame = cv2.flip(frame, 1)
     frame = frame.astype(np.uint8)
-    frame = cv2.threshold(frame, 127, 255, cv2.THRESH_BINARY_INV)
-    frame = cv2.bitwise_and(frame, frame, mask=mask)
-    frame = cv2.resize(frame, (1920 / 2, 1080 / 2), fx=1, fy=1)
+
+    frame = frame - calibrate_frame
+    frame = cv2.bitwise_not(frame)
+    #frame = cv2.threshold(frame, 127, 255, cv2.THRESH_BINARY_INV)
+    #frame = cv2.bitwise_and(frame, frame, mask=mask)
+    #frame = cv2.resize(frame, (1920 / 2, 1080 / 2), fx=1, fy=1)
 
     matrix = np.asarray(frame)
     matrix_coords = zip(*np.where(matrix == 255))
