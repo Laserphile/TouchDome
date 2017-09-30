@@ -39,7 +39,7 @@ def SerialTx():
 def SerialRx():
     serial_in = ser.readline()
     print(serial_in)
-    if serial_in == "146\r\n":
+    if b"Loop start" in serial_in:
         SerialTx()
 
 while True:
