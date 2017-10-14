@@ -30,10 +30,14 @@ def main(input_file, output_file):
     cv2.namedWindow('image')
     cv2.setMouseCallback('image', handle_mouse_events, led_canvas_array)
 
-    while 1:
+    execute_main_loop(img, led_canvas_array, output_file)
+
+
+def execute_main_loop(img, led_canvas_array, output_file):
+    while True:
         cv2.imshow('image', img)
-        k = cv2.waitKey(20) & 0xFF
-        if k == 27:
+        esc_key_pressed = (cv2.waitKey(20) & 0xFF) == 27
+        if esc_key_pressed:
             filename = output_file if output_file is not None else input("Enter a file name:")
             np_array = np.array(led_canvas_array)
             np.savetxt(filename, np_array)
