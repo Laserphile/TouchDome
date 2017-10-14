@@ -42,6 +42,6 @@ def main(input_file, output_file):
 
 
 if __name__ == '__main__':
-    input_file = sys.argv[1] if len(sys.argv) > 1 else 'Images/h2o_sign.png'
-    output_file = sys.argv[2] if len(sys.argv) > 2 else None
-    main(input_file, output_file)
+    in_file = sys.argv[1] if len(sys.argv) > 1 else 'Images/h2o_sign.png'
+    out_file = sys.argv[2] if len(sys.argv) > 2 else None
+    main(in_file, out_file)
