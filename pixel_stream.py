@@ -1,12 +1,16 @@
-# Input pixel coordinates and image (todo: get video working)
+# Input pixel coordinates and image
 # Output pixel RGB values to serial port
+# TODO:
+# Pull in code from serial_test.py as that works for a static array
+# Pull in a list of pixel coordinates from touch_coordinates.py (DONE)
+# Change from a static input image to a video input
+# Send an array as each new frame comes in from video
 
 import cv2
 import serial
 import numpy as np
 
-#img = cv2.imread('test_image.jpg',1)
-img = cv2.imread('round_mask_1080.png',1)
+image_to_display = cv2.imread('test_image.jpg',1)
 pixel_array = np.load('pixels.npy')
 ser = serial.Serial('COM6')
 capture = cv2.VideoCapture()
@@ -15,21 +19,13 @@ num_pixels = pixel_array[0]
 num_pixels = num_pixels[2]
 ret, frame = capture.read()
 
-print(ser.name)
-ser.write('hello')
-s = ser.readline()
-print s
-
-#while(True):
-s = ser.readline()
-print s
 
 for i in range(0, num_pixels):
     pixel_coord = pixel_array[i]
     pixel_coord = np.delete(pixel_coord, 2, 0)
     x = pixel_coord[0]
     y = pixel_coord[1]
-    pixel_RGB = np.take(img, [x,y])
+    pixel_RGB = np.take(image_to_display, [x,y])
     #print pixel_RGB
     print pixel_RGB
 

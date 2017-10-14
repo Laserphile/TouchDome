@@ -1,10 +1,11 @@
-//#include<FastLED.h>
+// Works with serial_stream_test.py
+// Echo back the array sent by the python script
+// TODO:
+// Work on arduino_stream_pixels.ino
+
 #define num_LED 5
 
-//CRGBArray<num_LED> leds;
-
 void setup() {
-  //FastLED.addLeds<NEOPIXEL,7>(leds, num_LED);
   Serial.begin(9600);
   Serial.println("Connected");
 }

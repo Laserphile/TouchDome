@@ -1,4 +1,8 @@
-# Serial test
+# Serial testing program
+# Takes a static array and sends it over serial to a micro controller
+# TODO:
+# Work on pixel_stream.py
+
 
 import serial
 import numpy as np

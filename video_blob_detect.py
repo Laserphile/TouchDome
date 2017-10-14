@@ -1,3 +1,7 @@
+# Takes the video from the touch input dome and outputs the coordinates of where you are touching
+# TODO:
+# Generate x,y coordinates from keypoints 
+
 import numpy as np
 import cv2
 
