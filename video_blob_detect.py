@@ -1,6 +1,6 @@
 # Takes the video from the touch input dome and outputs the coordinates of where you are touching
 # TODO:
-# Generate x,y coordinates from keypoints 
+# Generate x,y coordinates from keypoints
 
 import numpy as np
 import cv2
@@ -66,7 +66,14 @@ while True:
 
     # Detect blobs.
     keypoints = detector.detect(frame)
-    print(keypoints)
+    number_of_blobs = len(keypoints)
+    print(number_of_blobs)
+    i = 0
+    while (i < number_of_blobs):
+        x = int(round(keypoints[i].pt[0])) #i is the index of the blob you want to get the position
+        y = int(round(keypoints[i].pt[1]))
+        print(x, y)
+        i = i + 1
 
     # Draw detected blobs as red circles.
     # cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS ensures the size of the circle corresponds to the size of blob
