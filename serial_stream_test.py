@@ -7,7 +7,7 @@
 import serial
 import numpy as np
 
-MOCK_SERIAL = False
+MOCK_SERIAL = True
 
 if not MOCK_SERIAL:
     ser = serial.Serial('COM6', 9600)  # open serial port
@@ -34,10 +34,26 @@ if MOCK_SERIAL:
             print("Serial writing bytestr: %s" % bytestr)
     ser = Ser()
 
+def SerialTxHex():
+    string_byte = ' '.join(
+        ['%02x' % byte for byte in pixel_array.flatten()]
+    ) + '\n'
+    ser.write(string_byte.encode('ascii'))
+
 def SerialTx():
+    string_byte = ''
     for byte in pixel_array.flatten():
-        string_byte = "%s \n" % byte
-        ser.write(string_byte.encode('ascii'))
+        string_byte += str(byte)
+    string_byte += '\n'
+    ser.write(string_byte.encode('ascii'))
+
+
+if MOCK_SERIAL:
+    print("Serial Hex")
+    SerialTxHex()
+    print("Serial Decimal")
+    SerialTx()
+    quit()
 
 def SerialRx():
     serial_in = ser.readline()
