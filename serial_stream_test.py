@@ -7,7 +7,7 @@
 import serial
 import numpy as np
 
-MOCK_SERIAL = True
+MOCK_SERIAL = False
 
 if not MOCK_SERIAL:
     ser = serial.Serial('COM6', 9600)  # open serial port
@@ -46,7 +46,6 @@ def SerialTx():
         string_byte += str(byte)
     string_byte += '\n'
     ser.write(string_byte.encode('ascii'))
-
 
 if MOCK_SERIAL:
     print("Serial Hex")
