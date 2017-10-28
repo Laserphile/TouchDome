@@ -1,9 +1,8 @@
-# Input pixel coordinates and image
-# Output pixel RGB values to serial port
+# After a new RGB pixel array is generated from video_to_RGB_array.py
+# Output those pixel RGB values to a serial port
 # TODO:
 # Pull in code from serial_test.py as that works for a static array
-# Pull in a list of pixel coordinates from touch_coordinates.py (DONE)
-# Change from a static input image to a video input
+# 
 # Send an array as each new frame comes in from video
 
 import cv2
