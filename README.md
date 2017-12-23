@@ -1,10 +1,14 @@
 A camera is used to record touches on a semi-transparent surface.
 
-Packages used:
-Python
-OpenCV
-Numpy
-PySerial
+## Requirements
+Requires Python3
+
+Install prerequisite packages with
+```
+pip install -r requirements.txt
+```
+
+## Structure
 
 touch_detect.py shows clear image of touch.
 touch_coordinates.py pulls touch coordinates from the image in x and y pixels
