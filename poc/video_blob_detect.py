@@ -5,35 +5,37 @@
 import numpy as np
 import cv2
 
-cap = cv2.VideoCapture(0)
 mask = cv2.imread('Images/round_mask_1920_1080.png', 0)
+output_array = []
 
 while True:
     # Capture frame-by-frame
-    ret, frame = cap.read()
+    # ret, calibrate_frame = cap.read()
+    calibrate_frame = cv2.imread('Images/test_images/calibrate.jpg')
 
     # Our operations on the frame come here
-    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    frame = cv2.flip(frame, 1)
-    calibrate_frame = frame
+    calibrate_frame = cv2.cvtColor(calibrate_frame, cv2.COLOR_BGR2GRAY)
+    calibrate_frame = cv2.flip(calibrate_frame, 1)
 
     # Display the resulting frame
     cv2.imshow('frame', calibrate_frame)
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+    print('waiting on user input')
+    # if cv2.waitKey(1) & 0xFF == ord('q'):
+    break
 
-while True:
-    # Capture frame-by-frame
-    ret, frame = cap.read()
+cap = cv2.VideoCapture('Images/test_images/one_finger.mpeg')
+ret, input_frame = cap.read()
 
+while ret:
     # Our operations on the frame come here
-    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) * 0.89
-    frame = cv2.flip(frame, 1)
-    frame = frame.astype(np.uint8)
+    brightness_scale_factor = 0.89
+    input_frame = cv2.cvtColor(input_frame, cv2.COLOR_BGR2GRAY) * brightness_scale_factor
+    input_frame = cv2.flip(input_frame, 1)
+    input_frame = input_frame.astype(np.uint8)
 
-    frame = frame - calibrate_frame
-    frame = cv2.bitwise_not(frame)
-    #frame = cv2.bitwise_and(frame, frame, mask=mask)
+    frame_diff = input_frame - calibrate_frame
+    final_frame = cv2.bitwise_not(frame_diff)
+    # frame = cv2.bitwise_and(frame, frame, mask=mask)
 
     # Set up the detector with default parameters.
     params = cv2.SimpleBlobDetector_Params()
@@ -65,24 +67,35 @@ while True:
     detector = cv2.SimpleBlobDetector_create(params)
 
     # Detect blobs.
-    keypoints = detector.detect(frame)
+    keypoints = detector.detect(final_frame)
     number_of_blobs = len(keypoints)
     print(number_of_blobs)
-    i = 0
-    while (i < number_of_blobs):
-        x = int(round(keypoints[i].pt[0])) #i is the index of the blob you want to get the position
+    frame_array = []
+    for i in range(0, number_of_blobs):
+        x = int(round(keypoints[i].pt[0]))  # i is the index of the blob you want to get the position
         y = int(round(keypoints[i].pt[1]))
         print(x, y)
-        i = i + 1
+        frame_array.append([x, y])
 
+    output_array.append(frame_array)
     # Draw detected blobs as red circles.
     # cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS ensures the size of the circle corresponds to the size of blob
-    im_with_keypoints = cv2.drawKeypoints(frame, keypoints, np.array([]), (255,0,0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+    im_with_keypoints = cv2.drawKeypoints(final_frame,
+                                          keypoints,
+                                          np.array([]),
+                                          (255, 0, 0),
+                                          cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
     # Display the resulting frame
     cv2.imshow('frame', im_with_keypoints)
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+
+    # Capture frame-by-frame
+    ret, input_frame = cap.read()
+    # input_frame = cv2.imread('Images/test_images/two_fingers.jpg')
 
 # When everything done, release the capture
-cap.release()
+output_file = 'test_output/touch_out'
+filename = output_file if output_file is not None else input("Enter a file name:")
+np_array = np.array(output_array)
+np.save(filename, np_array)
+
 cv2.destroyAllWindows()
