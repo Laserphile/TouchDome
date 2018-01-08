@@ -26,26 +26,7 @@ params.minInertiaRatio = 0.6
 params.filterByColor = True
 params.blobColor = 255
 
-# mask = cv2.imread('Images/round_mask_1920_1080.png', 0)
 output_array = []
-
-# while True:
-#     # Capture frame-by-frame
-#     cap = cv2.VideoCapture(0)
-#     ret, calibrate_frame = cap.read()
-#     # calibrate_frame = cv2.imread('Images/test_images/calibrate.jpg')
-#
-#     # Our operations on the frame come here
-#     calibrate_frame = cv2.cvtColor(calibrate_frame, cv2.COLOR_BGR2GRAY)
-#     calibrate_frame = cv2.flip(calibrate_frame, 1)
-#     # fgmask = fgbg.apply(calibrate_frame)
-#
-#     # Display the resulting frame
-#     cv2.imshow('frame', calibrate_frame)
-#     print('waiting on user input')
-#     if cv2.waitKey(1) & 0xFF == ord('q'):
-#         print('calibration image taken')
-#         break
 
 while True:
     # Capture frame-by-frame
@@ -57,28 +38,34 @@ while True:
     input_frame = cv2.cvtColor(input_frame, cv2.COLOR_BGR2GRAY) * brightness_scale_factor
     input_frame = cv2.bitwise_not(input_frame)
 
-    gs_lower_color = np.array(120, dtype="uint8")
-    gs_upper_color = np.array(200, dtype="uint8")
+    # the below variables et the cutoff points for color differentiation
+    gs_lower_color = np.array(135, dtype="uint8")
+    gs_upper_color = np.array(255, dtype="uint8")
 
-    # # Threshold the HSV image to get only blue colors
-    mask = cv2.blur(input_frame, (10, 60))
+    # Blurring the image will cutout noise and give you better contours with less points
+    mask = cv2.blur(input_frame, (20, 60))
+
     mask = cv2.inRange(mask, gs_lower_color, gs_upper_color)
 
-    ret2, mask = cv2.threshold(mask, 250, 255, cv2.THRESH_BINARY)
+    ret2, mask = cv2.threshold(mask, 254, 255, cv2.THRESH_BINARY)
 
     mask, contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-    mask = cv2.cvtColor(mask,cv2.COLOR_GRAY2RGB)
+    mask = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
 
-    cv2.drawContours(mask, contours, -1, (255, 255, 0), 3)
+
+    for cnt in contours:
+        if 4 < len(cnt) < 300:
+            ellipse = cv2.fitEllipse(cnt)
+            cv2.ellipse(mask, ellipse, (0, 255, 0), 2)
+
+    # cv2.drawContours(mask, contours, -1, (255, 255, 0), 3)
 
     cv2.imshow('mask', mask)
     print('waiting on user input')
     if cv2.waitKey(1) & 0xFF == ord('q'):
         print('calibration image taken')
         break
-# cap = cv2.VideoCapture('Images/test_images/one_finger.mpeg')
-
 
 # while ret:
 #     # Our operations on the frame come here
