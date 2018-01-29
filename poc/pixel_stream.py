@@ -26,7 +26,7 @@ for i in range(0, num_pixels):
     y = pixel_coord[1]
     pixel_RGB = np.take(image_to_display, [x,y])
     #print pixel_RGB
-    print pixel_RGB
+    print(pixel_RGB)
 
     #cv2.imshow('frame',frame)
 
