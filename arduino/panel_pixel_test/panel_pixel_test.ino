@@ -9,7 +9,7 @@
 #define VALID_PIN( pin ) ((pin) > 0)
 
 // Assuming we can fill half of SRAM with CRGB pixels
-#define MAX_PIXELS (SRAM_SIZE / (2 * sizeof(CRGB)))
+#define MAX_PIXELS (int)(SRAM_SIZE / (2 * sizeof(CRGB)))
 
 // Length of output buffer
 #define BUFFLEN 256
