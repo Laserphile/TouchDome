@@ -1,15 +1,18 @@
 #include <Arduino.h>
 #include <FastLED.h>
 
+#include "panel_config.h"
+#include "board_properties.h"
+
+// Macro function to determine if pin is valid.
+// TODO: define MAX_PIN in board_properties.h
+#define VALID_PIN( pin ) ((pin) > 0)
+
 // This is kind of bullshit but you have to define the pins like this
 // because FastLED.addLeds needs to know the pin numbers at compile time.
 // Panels must be contiguous. The firmware stops defining panels after the first 
 // undefined panel.
-
-#include "panel_config.h"
-#include "sram_size.h"
-
-#define NEEDS_CLK( type ) (type == APA102 || type == DOTSTAR || type == WS2801 || type == LPD8806 || type == P9813 || type == SM16716 )
+// #define INIT_PANEL( data_pin, clk_pin, len, )
 
 // Assuming we can fill half of SRAM with CRGB pixels
 #define MAX_PIXELS (SRAM_SIZE / (2 * sizeof(CRGB)))
@@ -45,91 +48,127 @@ void stop() {
     while(1);
 }
 
-void init_panels() {
+int init_panels() {
     panels = (CRGB**) malloc( MAX_PANELS * sizeof(CRGB*));
     panel_count = 0;
     pixel_count = 0;
     
     // This is such bullshit but you gotta do it like this because addLeds needs to know pins at compile time
-    #if PANEL_00_DATA_PIN > 0 && PANEL_00_LEN > 0
-        panel_count++; pixel_count += PANEL_00_LEN;
-        if(panel_count > MAX_PANELS || pixel_count > MAX_PIXELS){
-            return;
+    snprintf(buffer, BUFFLEN, "; initializing PANEL_%02d, data_pin: %d, clk_pin: %d, len: %d", panel_count, PANEL_00_DATA_PIN, PANEL_00_CLK_PIN, PANEL_00_LEN);
+    Serial.println(buffer);
+    #if VALID_PIN(PANEL_00_DATA_PIN) && PANEL_00_LEN > 0
+        pixel_count += PANEL_00_LEN;
+        if(pixel_count > MAX_PIXELS){ 
+            snprintf(buffer, BUFFLEN, "pixel count %d exceeds MAX_PIXELS %d in PANEL_%02d", pixel_count, MAX_PIXELS, panel_count);
+            return 10; 
         }
-        panels[0] = (CRGB*) malloc( PANEL_00_LEN * sizeof(CRGB));
-        if(!panels[0]){
-            error_code = 10;
-            snprintf(buffer, BUFFLEN, "malloc failed for PANEL_00");
-            return;
+        panels[panel_count] = (CRGB*) malloc( PANEL_00_LEN * sizeof(CRGB));
+        if(!panels[panel_count]) {
+            snprintf(buffer, BUFFLEN, "malloc failed for PANEL_%02d", panel_count);
+            return 11;
         }
-        panel_info[0] = PANEL_00_LEN;
-        #if NEEDS_CLK(PANEL_00_TYPE) && PANEL_00_CLK_PIN > 0
-          FastLED.addLeds<PANEL_00_TYPE, PANEL_00_DATA_PIN, PANEL_00_CLK_PIN>(panels[0], PANEL_00_LEN);
+        panel_info[panel_count] = PANEL_00_LEN;
+        #if NEEDS_CLK
+            #if VALID_PIN(PANEL_00_CLK_PIN)
+                FastLED.addLeds<NEOPIXEL, PANEL_00_DATA_PIN, PANEL_00_CLK_PIN>(panels[panel_count], PANEL_00_LEN);
+            #else
+                snprintf(buffer, BUFFLEN, "Invalid clock pin %d for PANEL_%02d", PANEL_00_CLK_PIN, panel_count);
+                return 10;
+            #endif
         #else
-          FastLED.addLeds<PANEL_00_TYPE, PANEL_00_DATA_PIN>(panels[0], PANEL_00_LEN);
+            FastLED.addLeds<NEOPIXEL, PANEL_00_DATA_PIN>(panels[panel_count], PANEL_00_LEN);
         #endif
+        panel_count++;
     #else
-        return;
+        snprintf(buffer, BUFFLEN, "; PANEL_%02d not configured", panel_count);
+        return 0;
     #endif
-    #if PANEL_01_DATA_PIN > 0 && PANEL_01_LEN > 0
-        panel_count++; pixel_count += PANEL_01_LEN;
-        if(panel_count > MAX_PANELS || pixel_count > MAX_PIXELS){
-            return;
+    snprintf(buffer, BUFFLEN, "; initializing PANEL_%02d, data_pin: %d, clk_pin: %d, len: %d", panel_count, PANEL_01_DATA_PIN, PANEL_01_CLK_PIN, PANEL_01_LEN);
+    Serial.println(buffer);
+    #if VALID_PIN(PANEL_01_DATA_PIN) && PANEL_01_LEN > 0
+        pixel_count += PANEL_01_LEN;
+        if(pixel_count > MAX_PIXELS){ 
+            snprintf(buffer, BUFFLEN, "pixel count %d exceeds MAX_PIXELS %d in PANEL_%02d", pixel_count, MAX_PIXELS, panel_count);
+            return 10; 
         }
-        panels[1] = (CRGB*) malloc( PANEL_01_LEN * sizeof(CRGB));
-        if(!panels[1]){
-            error_code = 10;
-            snprintf(buffer, BUFFLEN, "malloc failed for PANEL_01");
-            return;
+        panels[panel_count] = (CRGB*) malloc( PANEL_01_LEN * sizeof(CRGB));
+        if(!panels[panel_count]) {
+            snprintf(buffer, BUFFLEN, "malloc failed for PANEL_%02d", panel_count);
+            return 11;
         }
-        panel_info[1] = PANEL_01_LEN;
-        #if NEEDS_CLK(PANEL_01_TYPE) && PANEL_01_CLK_PIN > 0
-          FastLED.addLeds<PANEL_01_TYPE, PANEL_01_DATA_PIN, PANEL_01_CLK_PIN>(panels[1], PANEL_01_LEN);
+        panel_info[panel_count] = PANEL_01_LEN;
+        #if NEEDS_CLK
+            #if VALID_PIN(PANEL_01_CLK_PIN)
+                FastLED.addLeds<NEOPIXEL, PANEL_01_DATA_PIN, PANEL_01_CLK_PIN>(panels[panel_count], PANEL_01_LEN);
+            #else
+                snprintf(buffer, BUFFLEN, "Invalid clock pin %d for PANEL_%02d", PANEL_01_CLK_PIN, panel_count);
+                return 10;
+            #endif
         #else
-          FastLED.addLeds<PANEL_01_TYPE, PANEL_01_DATA_PIN>(panels[1], PANEL_01_LEN);
+            FastLED.addLeds<NEOPIXEL, PANEL_01_DATA_PIN>(panels[panel_count], PANEL_01_LEN);
         #endif
+        panel_count++;
     #else
-        return;
+        snprintf(buffer, BUFFLEN, "; PANEL_%02d not configured", panel_count);
+        return 0;
     #endif
-    #if PANEL_02_DATA_PIN > 0 && PANEL_02_LEN > 0
-        panel_count++; pixel_count += PANEL_02_LEN;
-        if(panel_count > MAX_PANELS || pixel_count > MAX_PIXELS){
-            return;
+    snprintf(buffer, BUFFLEN, "; initializing PANEL_%02d, data_pin: %d, clk_pin: %d, len: %d", panel_count, PANEL_02_DATA_PIN, PANEL_02_CLK_PIN, PANEL_02_LEN);
+    Serial.println(buffer);
+    #if VALID_PIN(PANEL_02_DATA_PIN) && PANEL_02_LEN > 0
+        pixel_count += PANEL_02_LEN;
+        if(pixel_count > MAX_PIXELS){ 
+            snprintf(buffer, BUFFLEN, "pixel count %d exceeds MAX_PIXELS %d in PANEL_%02d", pixel_count, MAX_PIXELS, panel_count);
+            return 10; 
         }
-        panels[2] = (CRGB*) malloc( PANEL_02_LEN * sizeof(CRGB));
-        if(!panels[2]){
-            error_code = 10;
-            snprintf(buffer, BUFFLEN, "malloc failed for PANEL_02");
-            return;
+        panels[panel_count] = (CRGB*) malloc( PANEL_02_LEN * sizeof(CRGB));
+        if(!panels[panel_count]) {
+            snprintf(buffer, BUFFLEN, "malloc failed for PANEL_%02d", panel_count);
+            return 11;
         }
-        panel_info[2] = PANEL_02_LEN;
-        #if NEEDS_CLK(PANEL_02_TYPE) && PANEL_02_CLK_PIN > 0
-          FastLED.addLeds<PANEL_02_TYPE, PANEL_02_DATA_PIN, PANEL_02_CLK_PIN>(panels[2], PANEL_02_LEN);
+        panel_info[panel_count] = PANEL_02_LEN;
+        #if NEEDS_CLK
+            #if VALID_PIN(PANEL_02_CLK_PIN)
+                FastLED.addLeds<NEOPIXEL, PANEL_02_DATA_PIN, PANEL_02_CLK_PIN>(panels[panel_count], PANEL_02_LEN);
+            #else
+                snprintf(buffer, BUFFLEN, "Invalid clock pin %d for PANEL_%02d", PANEL_02_CLK_PIN, panel_count);
+                return 10;
+            #endif
         #else
-          FastLED.addLeds<PANEL_02_TYPE, PANEL_02_DATA_PIN>(panels[2], PANEL_02_LEN);
+            FastLED.addLeds<NEOPIXEL, PANEL_02_DATA_PIN>(panels[panel_count], PANEL_02_LEN);
         #endif
+        panel_count++;
     #else
-        return;
+        snprintf(buffer, BUFFLEN, "; PANEL_%02d not configured", panel_count);
+        return 0;
     #endif
-    #if PANEL_03_DATA_PIN > 0 && PANEL_03_LEN > 0
-        panel_count++; pixel_count += PANEL_03_LEN;
-        if(panel_count > MAX_PANELS || pixel_count > MAX_PIXELS){
-            return;
+    snprintf(buffer, BUFFLEN, "; initializing PANEL_%02d, data_pin: %d, clk_pin: %d, len: %d", panel_count, PANEL_03_DATA_PIN, PANEL_03_CLK_PIN, PANEL_03_LEN);
+    Serial.println(buffer);
+    #if VALID_PIN(PANEL_03_DATA_PIN) && PANEL_03_LEN > 0
+        pixel_count += PANEL_03_LEN;
+        if(pixel_count > MAX_PIXELS){ 
+            snprintf(buffer, BUFFLEN, "pixel count %d exceeds MAX_PIXELS %d in PANEL_%02d", pixel_count, MAX_PIXELS, panel_count);
+            return 10; 
         }
-        panels[3] = (CRGB*) malloc( PANEL_03_LEN * sizeof(CRGB));
-        if(!panels[3]){
-            error_code = 10;
-            snprintf(buffer, BUFFLEN, "malloc failed for PANEL_03");
-            return;
+        panels[panel_count] = (CRGB*) malloc( PANEL_03_LEN * sizeof(CRGB));
+        if(!panels[panel_count]) {
+            snprintf(buffer, BUFFLEN, "malloc failed for PANEL_%02d", panel_count);
+            return 11;
         }
-        panel_info[3] = PANEL_03_LEN;
-        #if NEEDS_CLK(PANEL_03_TYPE) && PANEL_03_CLK_PIN > 0
-          FastLED.addLeds<PANEL_03_TYPE, PANEL_03_DATA_PIN, PANEL_03_CLK_PIN>(panels[3], PANEL_03_LEN);
+        panel_info[panel_count] = PANEL_03_LEN;
+        #if NEEDS_CLK
+            #if VALID_PIN(PANEL_03_CLK_PIN)
+                FastLED.addLeds<NEOPIXEL, PANEL_03_DATA_PIN, PANEL_03_CLK_PIN>(panels[panel_count], PANEL_03_LEN);
+            #else
+                snprintf(buffer, BUFFLEN, "Invalid clock pin %d for PANEL_%02d", PANEL_03_CLK_PIN, panel_count);
+                return 10;
+            #endif
         #else
-          FastLED.addLeds<PANEL_03_TYPE, PANEL_03_DATA_PIN>(panels[3], PANEL_03_LEN);
+            FastLED.addLeds<NEOPIXEL, PANEL_03_DATA_PIN>(panels[panel_count], PANEL_03_LEN);
         #endif
+        panel_count++;
     #else
-        return;
+        snprintf(buffer, BUFFLEN, "; PANEL_%02d not configured", panel_count);
+        return 0;
     #endif
 }
 
@@ -137,49 +176,39 @@ void setup() {
     // initialize serial
     Serial.begin(SERIAL_BAUD);
 
+    snprintf(buffer, BUFFLEN, "; detected board: %s", DETECTED_BOARD);
+    Serial.println(buffer);    
+    snprintf(buffer, BUFFLEN, "; sram size: %d", SRAM_SIZE);
+    Serial.println(buffer);
+
     // Clear out buffer
     buffer[0] = '\0';
-    error_code = 0;
 
-    init_panels();
+    error_code = init_panels();
 
     // Check that there are not too many panels or pixels for the board
     if(!error_code){
-        if(panel_count <= 0){
-            error_code = 10;
-            snprintf(buffer, BUFFLEN, "panel_count is %d. No panels defined. Exiting", panel_count);
-        } else if(panel_count > MAX_PANELS){
-            error_code = 10;
-            snprintf(buffer, BUFFLEN, "MAX_PANELS is %d but panel_count is %d. Exiting", MAX_PANELS, panel_count);
-        } else if(pixel_count <= 0){
+        if(pixel_count <= 0){
             error_code = 10;
             snprintf(buffer, BUFFLEN, "pixel_count is %d. No pixels defined. Exiting", pixel_count);        
         } else if(pixel_count > MAX_PIXELS) {
             error_code = 10;
             snprintf(buffer, BUFFLEN, "MAX_PIXELS is %d but pixel_count is %d. Not enough memory. Exiting", MAX_PIXELS, pixel_count);        
-        } else {
-            error_code = 10;
-            snprintf(buffer, BUFFLEN, "Setup: OK");
-        }
+        } 
     }
     if(error_code){
         // If there was an error, print the error code before the out buffer
         Serial.print("E");
         Serial.print(error_code);
-    } else {
-        // Else the buffer is a comment
-        Serial.print("; ");
-    }
-    if(buffer[0] != '\0'){
-        if(error_code){
-            // In the case of an error code and a non-blank out buffer, print a delimeter
-            Serial.print(": ");
-        }
+        Serial.print(": ");
     }
     Serial.println(buffer);
     if(error_code){
         // In the case of an error, stop execution
         stop();
+    } else {
+        snprintf(buffer, BUFFLEN, "; Setup: OK");
+        Serial.println(buffer);
     }
 }
 
