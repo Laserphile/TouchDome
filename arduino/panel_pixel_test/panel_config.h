@@ -1,4 +1,4 @@
-#if defined(__MK20DX128__) // Matt's Live Setup on Teensy 3.2
+#if 1 // Matt's Live Setup on Teensy 3.2
     #define PANEL_TYPE APA102
     #define NEEDS_CLK 1
     #define PANEL_00_DATA_PIN 7
