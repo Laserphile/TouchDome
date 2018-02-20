@@ -1,5 +1,0 @@
-{
-    "sketch": "arduino/panel_pixel_test/panel_pixel_test.ino",
-    "board": "arduino:avr:uno",
-    "port": "/dev/cu.usbmodem142121"
-}
