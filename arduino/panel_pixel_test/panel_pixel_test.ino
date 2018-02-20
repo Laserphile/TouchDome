@@ -4,6 +4,10 @@
 #include "panel_config.h"
 #include "board_properties.h"
 
+extern unsigned int __bss_end;
+extern unsigned int __heap_start;
+extern void *__brkval;
+
 // Macro function to determine if pin is valid.
 // TODO: define MAX_PIN in board_properties.h
 #define VALID_PIN( pin ) ((pin) > 0)
@@ -13,6 +17,9 @@
 
 // Length of output buffer
 #define BUFFLEN 256
+
+// Might use bluetooth Serial later.
+#define SERIAL_OBJ Serial
 
 // Serial Baud rate
 #define SERIAL_BAUD 9600
@@ -38,10 +45,6 @@ char buffer[BUFFLEN];
 // Current error code
 int error_code = 0;
 
-extern unsigned int __bss_end;
-extern unsigned int __heap_start;
-extern void *__brkval;
-
 int getFreeSram() {
   uint8_t newVariable;
   // heap is empty, use bss as start memory address
@@ -54,7 +57,7 @@ int getFreeSram() {
 
 #define SNPRINTLN(...) \
     snprintf(buffer, BUFFLEN, __VA_ARGS__);\
-    Serial.println(buffer);
+    SERIAL_OBJ.println(buffer);
 
 // This is kind of bullshit but you have to define the pins like this
 // because FastLED.addLeds needs to know the pin numbers at compile time.
@@ -121,7 +124,7 @@ int init_panels() {
 
 void setup() {
     // initialize serial
-    Serial.begin(SERIAL_BAUD);
+    SERIAL_OBJ.begin(SERIAL_BAUD);
 
     SNPRINTLN("\n");
     SNPRINTLN("; detected board: %s", DETECTED_BOARD);    
@@ -144,10 +147,10 @@ void setup() {
     }
     if(error_code){
         // If there was an error, print the error code before the out buffer
-        Serial.print("E");
-        Serial.print(error_code);
-        Serial.print(": ");
-        Serial.println(buffer);
+        SERIAL_OBJ.print("E");
+        SERIAL_OBJ.print(error_code);
+        SERIAL_OBJ.print(": ");
+        SERIAL_OBJ.println(buffer);
         // In the case of an error, stop execution
         stop();
     } else {
