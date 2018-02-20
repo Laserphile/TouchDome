@@ -8,12 +8,6 @@
 // TODO: define MAX_PIN in board_properties.h
 #define VALID_PIN( pin ) ((pin) > 0)
 
-// This is kind of bullshit but you have to define the pins like this
-// because FastLED.addLeds needs to know the pin numbers at compile time.
-// Panels must be contiguous. The firmware stops defining panels after the first 
-// undefined panel.
-// #define INIT_PANEL( data_pin, clk_pin, len, )
-
 // Assuming we can fill half of SRAM with CRGB pixels
 #define MAX_PIXELS (SRAM_SIZE / (2 * sizeof(CRGB)))
 
@@ -44,6 +38,14 @@ char buffer[BUFFLEN];
 // Current error code
 int error_code = 0;
 
+// This is kind of bullshit but you have to define the pins like this
+// because FastLED.addLeds needs to know the pin numbers at compile time.
+// Panels must be contiguous. The firmware stops defining panels after the first 
+// undefined panel.
+#define INIT_PANEL( data_pin, clk_pin, len ) \
+    snprintf(buffer, BUFFLEN, "; initializing PANEL_%02d, data_pin: %d, clk_pin: %d, len: %d", panel_count, (data_pin), (clk_pin), (len));\
+    Serial.println(buffer);\
+
 void stop() {
     while(1);
 }
@@ -54,8 +56,7 @@ int init_panels() {
     pixel_count = 0;
     
     // This is such bullshit but you gotta do it like this because addLeds needs to know pins at compile time
-    snprintf(buffer, BUFFLEN, "; initializing PANEL_%02d, data_pin: %d, clk_pin: %d, len: %d", panel_count, PANEL_00_DATA_PIN, PANEL_00_CLK_PIN, PANEL_00_LEN);
-    Serial.println(buffer);
+    INIT_PANEL(PANEL_00_DATA_PIN, PANEL_00_CLK_PIN, PANEL_00_LEN);
     #if VALID_PIN(PANEL_00_DATA_PIN) && PANEL_00_LEN > 0
         pixel_count += PANEL_00_LEN;
         if(pixel_count > MAX_PIXELS){ 
@@ -83,8 +84,7 @@ int init_panels() {
         snprintf(buffer, BUFFLEN, "; PANEL_%02d not configured", panel_count);
         return 0;
     #endif
-    snprintf(buffer, BUFFLEN, "; initializing PANEL_%02d, data_pin: %d, clk_pin: %d, len: %d", panel_count, PANEL_01_DATA_PIN, PANEL_01_CLK_PIN, PANEL_01_LEN);
-    Serial.println(buffer);
+    INIT_PANEL(PANEL_01_DATA_PIN, PANEL_01_CLK_PIN, PANEL_01_LEN);
     #if VALID_PIN(PANEL_01_DATA_PIN) && PANEL_01_LEN > 0
         pixel_count += PANEL_01_LEN;
         if(pixel_count > MAX_PIXELS){ 
@@ -112,8 +112,7 @@ int init_panels() {
         snprintf(buffer, BUFFLEN, "; PANEL_%02d not configured", panel_count);
         return 0;
     #endif
-    snprintf(buffer, BUFFLEN, "; initializing PANEL_%02d, data_pin: %d, clk_pin: %d, len: %d", panel_count, PANEL_02_DATA_PIN, PANEL_02_CLK_PIN, PANEL_02_LEN);
-    Serial.println(buffer);
+    INIT_PANEL(PANEL_02_DATA_PIN, PANEL_02_CLK_PIN, PANEL_02_LEN);        
     #if VALID_PIN(PANEL_02_DATA_PIN) && PANEL_02_LEN > 0
         pixel_count += PANEL_02_LEN;
         if(pixel_count > MAX_PIXELS){ 
@@ -141,8 +140,7 @@ int init_panels() {
         snprintf(buffer, BUFFLEN, "; PANEL_%02d not configured", panel_count);
         return 0;
     #endif
-    snprintf(buffer, BUFFLEN, "; initializing PANEL_%02d, data_pin: %d, clk_pin: %d, len: %d", panel_count, PANEL_03_DATA_PIN, PANEL_03_CLK_PIN, PANEL_03_LEN);
-    Serial.println(buffer);
+    INIT_PANEL(PANEL_03_DATA_PIN, PANEL_03_CLK_PIN, PANEL_03_LEN);        
     #if VALID_PIN(PANEL_03_DATA_PIN) && PANEL_03_LEN > 0
         pixel_count += PANEL_03_LEN;
         if(pixel_count > MAX_PIXELS){ 
