@@ -37,7 +37,10 @@
 #elif defined(__MKL26Z64__) /* Teensy LC (Cortex-M0+)*/
     #define DETECTED_BOARD "MKL26Z64"
     #define SRAM_SIZE 8192
-#elif defined(__MK20DX128__) /* Teensy 3.0 -> 3.2 (Cortex-M4) */
+#elif defined(__MK20DX256__) /* Teensy 3.1 -> 3.2 (Cortex-M4) */
+    #define DETECTED_BOARD "MK20DX256"
+    #define SRAM_SIZE 65536
+#elif defined(__MK20DX128__) /* Teensy 3.0 (Cortex-M4) */
     #define DETECTED_BOARD "MK20DX128"
     #define SRAM_SIZE 65536
 #elif defined(__MK64FX512__) /* Teensy 3.5 (Cortex-M4F) */
