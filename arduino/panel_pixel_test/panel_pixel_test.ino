@@ -52,50 +52,82 @@ void init_panels() {
     
     // This is such bullshit but you gotta do it like this because addLeds needs to know pins at compile time
     #if PANEL_00_DATA_PIN > 0 && PANEL_00_LEN > 0
+        panel_count++; pixel_count += PANEL_00_LEN;
+        if(panel_count > MAX_PANELS || pixel_count > MAX_PIXELS){
+            return;
+        }
         panels[0] = (CRGB*) malloc( PANEL_00_LEN * sizeof(CRGB));
+        if(!panels[0]){
+            error_code = 10;
+            snprintf(buffer, BUFFLEN, "malloc failed for PANEL_00");
+            return;
+        }
         panel_info[0] = PANEL_00_LEN;
         #if NEEDS_CLK(PANEL_00_TYPE) && PANEL_00_CLK_PIN > 0
           FastLED.addLeds<PANEL_00_TYPE, PANEL_00_DATA_PIN, PANEL_00_CLK_PIN>(panels[0], PANEL_00_LEN);
         #else
           FastLED.addLeds<PANEL_00_TYPE, PANEL_00_DATA_PIN>(panels[0], PANEL_00_LEN);
         #endif
-        panel_count++; pixel_count += PANEL_00_LEN;
     #else
         return;
     #endif
     #if PANEL_01_DATA_PIN > 0 && PANEL_01_LEN > 0
+        panel_count++; pixel_count += PANEL_01_LEN;
+        if(panel_count > MAX_PANELS || pixel_count > MAX_PIXELS){
+            return;
+        }
         panels[1] = (CRGB*) malloc( PANEL_01_LEN * sizeof(CRGB));
+        if(!panels[1]){
+            error_code = 10;
+            snprintf(buffer, BUFFLEN, "malloc failed for PANEL_01");
+            return;
+        }
         panel_info[1] = PANEL_01_LEN;
         #if NEEDS_CLK(PANEL_01_TYPE) && PANEL_01_CLK_PIN > 0
           FastLED.addLeds<PANEL_01_TYPE, PANEL_01_DATA_PIN, PANEL_01_CLK_PIN>(panels[1], PANEL_01_LEN);
         #else
           FastLED.addLeds<PANEL_01_TYPE, PANEL_01_DATA_PIN>(panels[1], PANEL_01_LEN);
         #endif
-        panel_count++; pixel_count += PANEL_01_LEN;
     #else
         return;
     #endif
     #if PANEL_02_DATA_PIN > 0 && PANEL_02_LEN > 0
+        panel_count++; pixel_count += PANEL_02_LEN;
+        if(panel_count > MAX_PANELS || pixel_count > MAX_PIXELS){
+            return;
+        }
         panels[2] = (CRGB*) malloc( PANEL_02_LEN * sizeof(CRGB));
+        if(!panels[2]){
+            error_code = 10;
+            snprintf(buffer, BUFFLEN, "malloc failed for PANEL_02");
+            return;
+        }
         panel_info[2] = PANEL_02_LEN;
         #if NEEDS_CLK(PANEL_02_TYPE) && PANEL_02_CLK_PIN > 0
           FastLED.addLeds<PANEL_02_TYPE, PANEL_02_DATA_PIN, PANEL_02_CLK_PIN>(panels[2], PANEL_02_LEN);
         #else
           FastLED.addLeds<PANEL_02_TYPE, PANEL_02_DATA_PIN>(panels[2], PANEL_02_LEN);
         #endif
-        panel_count++; pixel_count += PANEL_02_LEN;
     #else
         return;
     #endif
     #if PANEL_03_DATA_PIN > 0 && PANEL_03_LEN > 0
+        panel_count++; pixel_count += PANEL_03_LEN;
+        if(panel_count > MAX_PANELS || pixel_count > MAX_PIXELS){
+            return;
+        }
         panels[3] = (CRGB*) malloc( PANEL_03_LEN * sizeof(CRGB));
+        if(!panels[3]){
+            error_code = 10;
+            snprintf(buffer, BUFFLEN, "malloc failed for PANEL_03");
+            return;
+        }
         panel_info[3] = PANEL_03_LEN;
         #if NEEDS_CLK(PANEL_03_TYPE) && PANEL_03_CLK_PIN > 0
           FastLED.addLeds<PANEL_03_TYPE, PANEL_03_DATA_PIN, PANEL_03_CLK_PIN>(panels[3], PANEL_03_LEN);
         #else
           FastLED.addLeds<PANEL_03_TYPE, PANEL_03_DATA_PIN>(panels[3], PANEL_03_LEN);
         #endif
-        panel_count++; pixel_count += PANEL_03_LEN;
     #else
         return;
     #endif
@@ -112,16 +144,23 @@ void setup() {
     init_panels();
 
     // Check that there are not too many panels or pixels for the board
-    if(panel_count <= 0){
-        snprintf(buffer, BUFFLEN, "panel_count is %d. No panels defined. Exiting", panel_count);
-    } else if(panel_count > MAX_PANELS){
-        snprintf(buffer, BUFFLEN, "MAX_PANELS is %d but panel_count is %d. Exiting", MAX_PANELS, panel_count);
-    } else if(pixel_count <= 0){
-        snprintf(buffer, BUFFLEN, "pixel_count is %d. No pixels defined. Exiting", pixel_count);        
-    } else if(pixel_count > MAX_PIXELS) {
-        snprintf(buffer, BUFFLEN, "MAX_PIXELS is %d but pixel_count is %d. Not enough memory. Exiting", pixel_count);        
-    } else {
-        snprintf(buffer, BUFFLEN, "Setup: OK");
+    if(!error_code){
+        if(panel_count <= 0){
+            error_code = 10;
+            snprintf(buffer, BUFFLEN, "panel_count is %d. No panels defined. Exiting", panel_count);
+        } else if(panel_count > MAX_PANELS){
+            error_code = 10;
+            snprintf(buffer, BUFFLEN, "MAX_PANELS is %d but panel_count is %d. Exiting", MAX_PANELS, panel_count);
+        } else if(pixel_count <= 0){
+            error_code = 10;
+            snprintf(buffer, BUFFLEN, "pixel_count is %d. No pixels defined. Exiting", pixel_count);        
+        } else if(pixel_count > MAX_PIXELS) {
+            error_code = 10;
+            snprintf(buffer, BUFFLEN, "MAX_PIXELS is %d but pixel_count is %d. Not enough memory. Exiting", MAX_PIXELS, pixel_count);        
+        } else {
+            error_code = 10;
+            snprintf(buffer, BUFFLEN, "Setup: OK");
+        }
     }
     if(error_code){
         // If there was an error, print the error code before the out buffer
