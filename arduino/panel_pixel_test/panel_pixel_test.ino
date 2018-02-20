@@ -108,9 +108,7 @@ int init_panels() {
 void setup() {
     // initialize serial
     Serial.begin(SERIAL_BAUD);
-    while (!Serial) {
-        ; // wait for serial port to connect. Needed for native USB port only
-    }
+
     SNPRINTLN("\n");
     SNPRINTLN("; detected board: %s", DETECTED_BOARD);    
     SNPRINTLN("; sram size: %d", SRAM_SIZE);
