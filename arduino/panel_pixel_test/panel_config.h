@@ -22,7 +22,7 @@
     #define PANEL_00_LEN 333
     #define PANEL_01_DATA_PIN 7
     #define PANEL_01_CLK_PIN 14
-    #define PANEL_01_LEN 303
+    #define PANEL_01_LEN 260
     #define PANEL_02_DATA_PIN 11
     #define PANEL_02_CLK_PIN 13
     #define PANEL_02_LEN 333
