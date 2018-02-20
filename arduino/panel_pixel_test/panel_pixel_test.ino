@@ -71,13 +71,13 @@ int init_panels() {
         panel_info[panel_count] = PANEL_00_LEN;
         #if NEEDS_CLK
             #if VALID_PIN(PANEL_00_CLK_PIN)
-                FastLED.addLeds<NEOPIXEL, PANEL_00_DATA_PIN, PANEL_00_CLK_PIN>(panels[panel_count], PANEL_00_LEN);
+                FastLED.addLeds<PANEL_TYPE, PANEL_00_DATA_PIN, PANEL_00_CLK_PIN>(panels[panel_count], PANEL_00_LEN);
             #else
                 snprintf(buffer, BUFFLEN, "Invalid clock pin %d for PANEL_%02d", PANEL_00_CLK_PIN, panel_count);
                 return 10;
             #endif
         #else
-            FastLED.addLeds<NEOPIXEL, PANEL_00_DATA_PIN>(panels[panel_count], PANEL_00_LEN);
+            FastLED.addLeds<PANEL_TYPE, PANEL_00_DATA_PIN>(panels[panel_count], PANEL_00_LEN);
         #endif
         panel_count++;
     #else
@@ -99,13 +99,13 @@ int init_panels() {
         panel_info[panel_count] = PANEL_01_LEN;
         #if NEEDS_CLK
             #if VALID_PIN(PANEL_01_CLK_PIN)
-                FastLED.addLeds<NEOPIXEL, PANEL_01_DATA_PIN, PANEL_01_CLK_PIN>(panels[panel_count], PANEL_01_LEN);
+                FastLED.addLeds<PANEL_TYPE, PANEL_01_DATA_PIN, PANEL_01_CLK_PIN>(panels[panel_count], PANEL_01_LEN);
             #else
                 snprintf(buffer, BUFFLEN, "Invalid clock pin %d for PANEL_%02d", PANEL_01_CLK_PIN, panel_count);
                 return 10;
             #endif
         #else
-            FastLED.addLeds<NEOPIXEL, PANEL_01_DATA_PIN>(panels[panel_count], PANEL_01_LEN);
+            FastLED.addLeds<PANEL_TYPE, PANEL_01_DATA_PIN>(panels[panel_count], PANEL_01_LEN);
         #endif
         panel_count++;
     #else
@@ -127,13 +127,13 @@ int init_panels() {
         panel_info[panel_count] = PANEL_02_LEN;
         #if NEEDS_CLK
             #if VALID_PIN(PANEL_02_CLK_PIN)
-                FastLED.addLeds<NEOPIXEL, PANEL_02_DATA_PIN, PANEL_02_CLK_PIN>(panels[panel_count], PANEL_02_LEN);
+                FastLED.addLeds<PANEL_TYPE, PANEL_02_DATA_PIN, PANEL_02_CLK_PIN>(panels[panel_count], PANEL_02_LEN);
             #else
                 snprintf(buffer, BUFFLEN, "Invalid clock pin %d for PANEL_%02d", PANEL_02_CLK_PIN, panel_count);
                 return 10;
             #endif
         #else
-            FastLED.addLeds<NEOPIXEL, PANEL_02_DATA_PIN>(panels[panel_count], PANEL_02_LEN);
+            FastLED.addLeds<PANEL_TYPE, PANEL_02_DATA_PIN>(panels[panel_count], PANEL_02_LEN);
         #endif
         panel_count++;
     #else
@@ -155,13 +155,13 @@ int init_panels() {
         panel_info[panel_count] = PANEL_03_LEN;
         #if NEEDS_CLK
             #if VALID_PIN(PANEL_03_CLK_PIN)
-                FastLED.addLeds<NEOPIXEL, PANEL_03_DATA_PIN, PANEL_03_CLK_PIN>(panels[panel_count], PANEL_03_LEN);
+                FastLED.addLeds<PANEL_TYPE, PANEL_03_DATA_PIN, PANEL_03_CLK_PIN>(panels[panel_count], PANEL_03_LEN);
             #else
                 snprintf(buffer, BUFFLEN, "Invalid clock pin %d for PANEL_%02d", PANEL_03_CLK_PIN, panel_count);
                 return 10;
             #endif
         #else
-            FastLED.addLeds<NEOPIXEL, PANEL_03_DATA_PIN>(panels[panel_count], PANEL_03_LEN);
+            FastLED.addLeds<PANEL_TYPE, PANEL_03_DATA_PIN>(panels[panel_count], PANEL_03_LEN);
         #endif
         panel_count++;
     #else
