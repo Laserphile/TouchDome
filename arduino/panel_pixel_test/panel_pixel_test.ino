@@ -101,6 +101,7 @@ int init_panels() {
         FastLED.addLeds<PANEL_TYPE, PANEL_03_DATA_PIN>(panels[panel_count], PANEL_03_LEN);
     #endif
     panel_count++;
+    return 0;
 }
 
 void setup() {
@@ -140,6 +141,14 @@ void setup() {
         stop();
     } else {
         snprintf(buffer, BUFFLEN, "; Setup: OK");
+        Serial.println(buffer);
+    }
+
+    snprintf(buffer, BUFFLEN, "; pixel_count: %d, panel_count: %d", pixel_count, panel_count);
+    Serial.println(buffer);
+
+    for(int p=0; p<panel_count; p++){
+        snprintf(buffer, BUFFLEN, "; -> panel %d len %d", p, panel_info[p]);
         Serial.println(buffer);
     }
 }
