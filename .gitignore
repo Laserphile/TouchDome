@@ -2,3 +2,4 @@
 touch_dome.iml
 build/
 *.pyc
+.vscode/*
