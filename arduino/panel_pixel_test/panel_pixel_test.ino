@@ -38,19 +38,20 @@ char buffer[BUFFLEN];
 // Current error code
 int error_code = 0;
 
+#define SNPRINTLN(...) \
+    snprintf(buffer, BUFFLEN, __VA_ARGS__);\
+    Serial.println(buffer);
+
 // This is kind of bullshit but you have to define the pins like this
 // because FastLED.addLeds needs to know the pin numbers at compile time.
 // Panels must be contiguous. The firmware stops defining panels after the first 
 // undefined panel.
-
 #define INIT_PANEL( data_pin, clk_pin, len) \
     if(!VALID_PIN((data_pin)) || (len) <= 0){\
-        snprintf(buffer, BUFFLEN, "; PANEL_%02d not configured", panel_count);\
-        Serial.println(buffer);\
+        SNPRINTLN("; PANEL_%02d not configured", panel_count);\
         return 0;\
     }\
-    snprintf(buffer, BUFFLEN, "; initializing PANEL_%02d, data_pin: %d, clk_pin: %d, len: %d", panel_count, (data_pin), (clk_pin), (len));\
-    Serial.println(buffer);\
+    SNPRINTLN("; initializing PANEL_%02d, data_pin: %d, clk_pin: %d, len: %d", panel_count, (data_pin), (clk_pin), (len));\
     pixel_count += (len);\
     if(pixel_count > MAX_PIXELS){\
         snprintf(buffer, BUFFLEN, "pixel count %d exceeds MAX_PIXELS %d in PANEL_%02d", pixel_count, MAX_PIXELS, panel_count);\
@@ -110,11 +111,9 @@ void setup() {
     while (!Serial) {
         ; // wait for serial port to connect. Needed for native USB port only
     }
-
-    snprintf(buffer, BUFFLEN, "; detected board: %s", DETECTED_BOARD);
-    Serial.println(buffer);    
-    snprintf(buffer, BUFFLEN, "; sram size: %d", SRAM_SIZE);
-    Serial.println(buffer);
+    SNPRINTLN("\n");
+    SNPRINTLN("; detected board: %s", DETECTED_BOARD);    
+    SNPRINTLN("; sram size: %d", SRAM_SIZE);
 
     // Clear out buffer
     buffer[0] = '\0';
@@ -140,16 +139,13 @@ void setup() {
         // In the case of an error, stop execution
         stop();
     } else {
-        snprintf(buffer, BUFFLEN, "; Setup: OK");
-        Serial.println(buffer);
+        SNPRINTLN("; Setup: OK");
     }
 
-    snprintf(buffer, BUFFLEN, "; pixel_count: %d, panel_count: %d", pixel_count, panel_count);
-    Serial.println(buffer);
+    SNPRINTLN("; pixel_count: %d, panel_count: %d", pixel_count, panel_count);
 
     for(int p=0; p<panel_count; p++){
-        snprintf(buffer, BUFFLEN, "; -> panel %d len %d", p, panel_info[p]);
-        Serial.println(buffer);
+        SNPRINTLN("; -> panel %d len %d", p, panel_info[p]);
     }
 }
 
