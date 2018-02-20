@@ -175,6 +175,9 @@ int init_panels() {
 void setup() {
     // initialize serial
     Serial.begin(SERIAL_BAUD);
+    while (!Serial) {
+        ; // wait for serial port to connect. Needed for native USB port only
+    }
 
     snprintf(buffer, BUFFLEN, "; detected board: %s", DETECTED_BOARD);
     Serial.println(buffer);    
