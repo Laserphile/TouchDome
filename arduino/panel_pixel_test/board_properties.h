@@ -33,6 +33,7 @@
 // TeensyDuino
 #elif defined(__AVR_AT90USB1286__)  /* Teensy++ 2.0 */
     #define DETECTED_BOARD "AVR_AT90USB1286"
+    #define DETECTED_TEENSY 1
     #define SRAM_SIZE 8192
 #elif defined(__MKL26Z64__) /* Teensy LC (Cortex-M0+)*/
     #define DETECTED_BOARD "MKL26Z64"
