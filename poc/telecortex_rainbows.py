@@ -180,7 +180,7 @@ def main():
                 for panel in range(PANELS):
                     sesh.send_cmd_async(b"M2603 Q%d V%s" % (panel, pixel_str))
                 sesh.send_cmd_async(b"M2610")
-                frameno = (frameno + 10) % 255
+                frameno = (frameno + 1) % 255
 
 if __name__ == '__main__':
     main()
