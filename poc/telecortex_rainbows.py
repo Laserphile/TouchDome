@@ -142,7 +142,7 @@ def main():
     target_device = TELECORTEX_DEV
     for port_info in list_ports.comports():
         logging.debug("found serial device vid: %s, pid: %s" % (port_info.vid, port_info.pid))
-        if port_info.vid == TELECORTEX_VID and port_info.pid == TELECORTEX_PID:
+        if port_info.vid == TELECORTEX_VID: #and port_info.pid == TELECORTEX_PID:
             logging.info("found target device: %s" % port_info.device)
             target_device = port_info.device
             break
