@@ -1,15 +1,21 @@
 from __future__ import unicode_literals
-from builtins import bytes, chr, str
 
 import base64
-import coloredlogs, logging
+import logging
 import re
 import time
 from collections import OrderedDict
 from pprint import pformat, pprint
 
+import coloredlogs
 import serial
 from serial.tools import list_ports
+from kitchen.text import converters
+
+import six
+
+STREAM_LOG_LEVEL = logging.WARN
+STREAM_LOG_LEVEL = logging.DEBUG
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -17,7 +23,7 @@ logger.setLevel(logging.DEBUG)
 file_handler = logging.FileHandler(".rainbowz.log")
 file_handler.setLevel(logging.DEBUG)
 stream_handler = logging.StreamHandler()
-stream_handler.setLevel(logging.WARN)
+stream_handler.setLevel(STREAM_LOG_LEVEL)
 stream_handler.setFormatter(coloredlogs.ColoredFormatter())
 stream_handler.addFilter(coloredlogs.HostNameFilter())
 stream_handler.addFilter(coloredlogs.ProgramNameFilter())
@@ -71,6 +77,7 @@ class TelecortexSession(object):
     command is received.
     When
     """
+    # TODO: implement soft reset when approaching long int linenum so it can run forever
 
     ack_queue_len = ACK_QUEUE_LEN
     ser_buff_size = 64
@@ -86,23 +93,24 @@ class TelecortexSession(object):
         # commands which expect acknowledgement
         self.ack_queue = OrderedDict()
 
-    def fmt_ack_cmd(self, linenum, cmd, args):
-        cmd = " ".join(filter(None, [cmd, args]))
-        cmd = "N%d %s\n" % (linenum, cmd)
+    def fmt_cmd(self, linenum=None, cmd=None, args=None):
+        cmd = " ".join(filter(None, [cmd, args])) + '\n'
+        if linenum is not None:
+            cmd = "N%d %s" % (linenum, cmd)
         return cmd
 
     def send_cmd_sync(self, cmd, args=None):
         self.ack_queue[self.linecount] = (cmd, args)
-        cmd = self.fmt_ack_cmd(self.linecount, cmd, args)
+        cmd = self.fmt_cmd(self.linecount, cmd, args)
         logging.info("sending cmd sync, %s" % repr(cmd))
-        self.ser.write(cmd.encode('ascii'))
+        self.write_text(cmd)
         self.linecount += 1
 
     def send_cmd_async(self, cmd, args=None):
-        cmd = " ".join(filter(None, [cmd, args])) + "\n"
+        cmd = self.fmt_cmd(None, cmd, args)
         logging.info("sending cmd async %s" % repr(cmd))
         cmd = "%s" % cmd
-        self.ser.write(cmd.encode('ascii'))
+        self.write_text(cmd)
 
     def reset_board(self):
 
@@ -144,10 +152,24 @@ class TelecortexSession(object):
         self.send_cmd_sync("M110", "N%d" % linenum)
         self.linecount = linenum + 1
 
+    def write_text(self, text):
+        # byte_array = [six.byte2int(j) for j in text]
+        # byte_array = six.binary_type(text, 'latin-1')
+        assert isinstance(text, six.text_type), "text should be text_type"
+        if six.PY3:
+            byte_array = six.binary_type(text, 'latin-1')
+        if six.PY2:
+            byte_array = six.binary_type(text)
+        self.ser.write(byte_array)
+
     def get_line(self):
-        line = self.ser.readline().decode('ascii')
-        if line and line[-1] == '\n':
-            line = line[:-1]
+        line = self.ser.readline()
+        line = converters.to_unicode(line)
+        if line:
+            if line[-1] == '\n':
+                line = line[:-1]
+            if line[-1] == '\r':
+                line = line[:-1]
         return line
 
     def parse_responses(self):
@@ -217,7 +239,7 @@ class TelecortexSession(object):
         for linenum, ack_cmd in self.ack_queue.items():
             if ack_cmd[0] == "M110":
                 return False
-            ser_buff_len += len(self.fmt_ack_cmd(linenum, *ack_cmd))
+            ser_buff_len += len(self.fmt_cmd(linenum, *ack_cmd))
             if ser_buff_len > self.ser_buff_size:
                 return False
         return True
@@ -260,10 +282,24 @@ class PayloadHSVLightScene(AbstractLightScene):
     Each panel is lit by an entire HSV payload, as in M2600-M2601
     """
 
-def pix_bytes2unicode(*pixels):
-    return base64.b64encode(
-        bytes(pixels)
-    ).decode('ascii')
+def pix_array2text(*pixels):
+    response = base64.b64encode(
+        b''.join([
+            six.int2byte(pixel) \
+            for pixel in pixels
+        ])
+    )
+    response = six.text_type(response, 'ascii')
+    # response = ''.join(map(six.unichr, pixels))
+    # response = six.binary_type(base64.b64encode(
+    #     bytes(pixels)
+    # ))
+    logging.debug("pix_text: %s" % repr(response))
+    return response
+
+PANEL_LENGTHS = [
+    333, 260, 333, 333
+]
 
 def main():
     # TODO: enumerate serial ports, select board by pid/vid
@@ -287,17 +323,18 @@ def main():
         while sesh:
             # Listen for IDLE or timeout
             sesh.parse_responses()
-            if sesh.ready:
-                # send some HSV rainbowz
-                # H = frameno, S = 255 (0xff), V = 127 (0x7f)
-                logging.debug("Drawing frame %s" % frameno)
-                pixel_str = pix_bytes2unicode(
-                    frameno % 255, 255, 127
-                )
-                for panel in range(PANELS):
-                    sesh.send_cmd_sync("M2603","Q%d V%s" % (panel, pixel_str))
-                sesh.send_cmd_sync("M2610")
-                frameno = (frameno + 1) % 255
+            if not sesh.ready:
+                continue
+            # send some HSV rainbowz
+            # H = frameno, S = 255 (0xff), V = 127 (0x7f)
+            logging.debug("Drawing frame %s" % frameno)
+            pixel_str = pix_array2text(
+                frameno % 255, 255, 127
+            )
+            for panel in range(PANELS):
+                sesh.send_cmd_sync("M2603","Q%d V%s" % (panel, pixel_str))
+            sesh.send_cmd_sync("M2610")
+            frameno = (frameno + 1) % 255
 
 if __name__ == '__main__':
     main()

@@ -2,3 +2,5 @@ numpy==1.13.3
 pyserial==3.4
 future
 coloredlogs
+six
+kitchen
