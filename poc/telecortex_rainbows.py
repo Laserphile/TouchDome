@@ -86,25 +86,29 @@ class TelecortexSession(object):
         # commands which expect acknowledgement
         self.ack_queue = OrderedDict()
 
-    def send_cmd_sync(self, cmd):
-        self.ack_queue[self.linecount] = cmd
-        logging.info("sending cmd sync, %s" % cmd)
-        cmd = "N%d %s\n" % (self.linecount, cmd)
+    def fmt_ack_cmd(self, linenum, cmd, args):
+        cmd = " ".join(filter(None, [cmd, args]))
+        cmd = "N%d %s\n" % (linenum, cmd)
+        return cmd
+
+    def send_cmd_sync(self, cmd, args=None):
+        self.ack_queue[self.linecount] = (cmd, args)
+        cmd = self.fmt_ack_cmd(self.linecount, cmd, args)
+        logging.info("sending cmd sync, %s" % repr(cmd))
         self.ser.write(cmd.encode('ascii'))
         self.linecount += 1
 
-    def send_cmd_async(self, cmd):
-        logging.info("sending cmd async %s" % cmd)
-        cmd = "%s\n" % cmd
+    def send_cmd_async(self, cmd, args=None):
+        cmd = " ".join(filter(None, [cmd, args])) + "\n"
+        logging.info("sending cmd async %s" % repr(cmd))
+        cmd = "%s" % cmd
         self.ser.write(cmd.encode('ascii'))
 
     def reset_board(self):
 
         self.ser.reset_output_buffer()
         self.ser.flush()
-        self.send_cmd_async("M9999 ;")
-        while self.ser.in_waiting:
-            self.ser.readline()
+        self.send_cmd_async("M9999")
 
         # wiggle DTR and CTS (only works with AVR boards)
         self.ser.dtr = not self.ser.dtr
@@ -113,6 +117,9 @@ class TelecortexSession(object):
         self.ser.dtr = not self.ser.dtr
         self.ser.rts = not self.ser.rts
         time.sleep(0.1)
+
+        while self.ser.in_waiting:
+            self.ser.readline()
 
         self.set_linenum(0)
 
@@ -134,7 +141,7 @@ class TelecortexSession(object):
         raise UserWarning(warning)
 
     def set_linenum(self, linenum):
-        self.send_cmd_async("M110 N%d" % linenum)
+        self.send_cmd_sync("M110", "N%d" % linenum)
         self.linecount = linenum + 1
 
     def get_line(self):
@@ -165,8 +172,15 @@ class TelecortexSession(object):
                     except ValueError:
                         linenum = None
                     assert \
-                        linenum and linenum in self.ack_queue, \
-                        "received an acknowledgement for an unknown command:\n%s" % line
+                        linenum is not None and linenum in self.ack_queue, \
+                        (
+                            "received an acknowledgement for an unknown command:\n"
+                            "%s\n"
+                            "known linenums: %s"
+                        ) % (
+                            line,
+                            self.ack_queue.keys()
+                        )
                     del self.ack_queue[linenum]
                 elif re.match(self.re_line_error, line):
                     match = re.search(self.re_line_error, line).groupdict()
@@ -199,10 +213,14 @@ class TelecortexSession(object):
 
     @property
     def ready(self):
-        # TODO: this
-        return \
-            len(self.ack_queue) < self.ack_queue_len \
-            and sum(map(len, self.ack_queue.values())) < self.ser_buff_size
+        ser_buff_len = 0
+        for linenum, ack_cmd in self.ack_queue.items():
+            if ack_cmd[0] == "M110":
+                return False
+            ser_buff_len += len(self.fmt_ack_cmd(linenum, *ack_cmd))
+            if ser_buff_len > self.ser_buff_size:
+                return False
+        return True
 
     def __nonzero__(self):
         return bool(self.ser)
@@ -277,7 +295,7 @@ def main():
                     frameno % 255, 255, 127
                 )
                 for panel in range(PANELS):
-                    sesh.send_cmd_sync("M2603 Q%d V%s" % (panel, pixel_str))
+                    sesh.send_cmd_sync("M2603","Q%d V%s" % (panel, pixel_str))
                 sesh.send_cmd_sync("M2610")
                 frameno = (frameno + 1) % 255
 
