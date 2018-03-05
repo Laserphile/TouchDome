@@ -237,6 +237,11 @@ class PayloadHSVLightScene(AbstractLightScene):
  'xonxoff': False}
 """
 
+def pix_bytes2unicode(*pixels):
+    return base64.b64encode(
+        bytes(pixels)
+    ).decode('ascii')
+
 def main():
     # TODO: enumerate serial ports, select board by pid/vid
 
@@ -265,9 +270,9 @@ def main():
                 # send some HSV rainbowz
                 # H = frameno, S = 255 (0xff), V = 127 (0x7f)
                 logging.debug("Drawing frame %s" % frameno)
-                pixel_str = base64.b64encode(
-                    bytes([frameno % 255, 255, 127])
-                ).decode('ascii')
+                pixel_str = pix_bytes2unicode(
+                    frameno % 255, 255, 127
+                )
                 for panel in range(PANELS):
                     sesh.send_cmd_sync("M2603 Q%d V%s" % (panel, pixel_str))
                 sesh.send_cmd_sync("M2610")

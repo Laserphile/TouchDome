@@ -3,3 +3,4 @@ touch_dome.iml
 build/
 *.pyc
 .vscode/*
+screenlog.0
