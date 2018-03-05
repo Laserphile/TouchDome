@@ -33,6 +33,7 @@ def main():
     logging.info("sys.argv: %s" % sys.argv)
     args = [
         "screen",
+        "-L",
         "%s" % target_device,
         "%s,cs8,-parenb,-cstopb,inlcr,onlret,echo" % TELECORTEX_BAUD
     ]
