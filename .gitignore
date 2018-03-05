@@ -4,3 +4,4 @@ build/
 *.pyc
 .vscode/*
 screenlog.0
+.python-version
