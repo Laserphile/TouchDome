@@ -1,14 +1,17 @@
 from __future__ import unicode_literals
+from builtins import bytes, chr, str
 
 import base64
 import logging
+import re
 import time
+from collections import OrderedDict
+from pprint import pformat, pprint
 
 import serial
 from serial.tools import list_ports
-from pprint import pformat, pprint
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.WARN)
 
 TELECORTEX_DEV = "/dev/tty.usbmodem35"
 # to get these values:
@@ -50,7 +53,6 @@ IDLE
 # TODO: finish this class
 
 class TelecortexSession(object):
-    ack_queue_len = ACK_QUEUE_LEN
     """
     Manages a serial session with a Telecortex device.
     When commands are sent that require acknowledgement (synchronous),
@@ -58,19 +60,119 @@ class TelecortexSession(object):
     command is received.
     When
     """
+
+    ack_queue_len = ACK_QUEUE_LEN
+    re_error = r"^E(?P<errnum>\d+):\s+(?P<err>.*)"
+    re_line_ok = r"^N(?P<linenum>\d+):\s+OK"
+    re_line_error = r"^N(?P<linenum>\d+):\s+" + re_error[1:]
+    re_pixel_set_rate = r"^;LOO: Pixel set rate: (?P<rate>[\d\.]+)"
+
     def __init__(self, ser, linecount=0):
         super(TelecortexSession, self).__init__()
         self.ser = ser
         self.linecount = linecount
-        # commands which expect acknowledgement are queued
-        self.ack_queue = []
+        # commands which expect acknowledgement
+        self.ack_queue = OrderedDict()
 
     def send_cmd_sync(self, cmd):
-        pass
+        self.ack_queue[self.linecount] = cmd
+        logging.info("sending cmd sync, %s" % cmd)
+        cmd = "N%d %s\n" % (self.linecount, cmd)
+        self.ser.write(cmd.encode('ascii'))
+        self.linecount += 1
 
     def send_cmd_async(self, cmd):
-        logging.info("sending cmd %s" % cmd)
-        self.ser.write(b"%s\n" % cmd)
+        logging.info("sending cmd async %s" % cmd)
+        cmd = "%s\n" % cmd
+        self.ser.write(cmd.encode('ascii'))
+
+    def clear_ack_queue(self):
+        logging.info("clearing ack queue: %s" % self.ack_queue.keys())
+        self.ack_queue = OrderedDict()
+
+    def raise_error(self, errnum, err, linenum=None):
+        warning = "error %d: %s" % (
+            errnum,
+            err,
+        )
+        if linenum is not None:
+            warning = "line %d, %s\nOriginal Command: %s" % (
+                linenum,
+                warning,
+                self.ack_queue.get(linenum, "???")
+            )
+        raise UserWarning(warning)
+
+    def set_linenum(self, linenum):
+        self.send_cmd_async("M110 N%d" % linenum)
+
+    def get_line(self):
+        line = self.ser.readline().decode('ascii')
+        if line[-1] == '\n':
+            line = line[:-1]
+        return line
+
+    def parse_responses(self):
+        line = self.get_line()
+        received_idle = False
+        while True:
+            logging.info("received line: %s" % line)
+            if line.startswith("IDLE"):
+                received_idle = True
+            elif line.startswith(";"):
+                if re.match(self.re_pixel_set_rate, line):
+                    match = re.search(self.re_pixel_set_rate, line).groupdict()
+                    rate = match.get('rate')
+                    logging.warn("set rate: %s" % rate)
+            elif line.startswith("N"):
+                received_idle = False
+                # either "N\d+: OK" or N\d+: E\d+:
+                if re.match(self.re_line_ok, line):
+                    match = re.search(self.re_line_ok, line).groupdict()
+                    try:
+                        linenum = int(match.get('linenum'))
+                    except ValueError:
+                        linenum = None
+                    assert \
+                        linenum and linenum in self.ack_queue, \
+                        "received an acknowledgement for an unknown command"
+                    del self.ack_queue[linenum]
+                elif re.match(self.re_line_error, line):
+                    match = re.search(self.re_line_error, line).groupdict()
+                    try:
+                        linenum = int(match.get('linenum'))
+                    except ValueError:
+                        linenum = None
+                    self.raise_error(
+                        match.get('errnum'),
+                        match.get('err'),
+                        linenum
+                    )
+            elif line.startswith("E"):
+                received_idle = False
+                if re.match(self.re_error, line):
+                    match = re.search(self.re_error, line).groupdict()
+                    self.raise_error(
+                        match.get('errnum'),
+                        match.get('err')
+                    )
+            else:
+                logging.debug("line not recognised")
+            if not self.ser.in_waiting:
+                break
+            line = self.get_line()
+        if received_idle:
+            self.clear_ack_queue()
+        # else:
+        #     logging.debug("did not recieve IDLE")
+
+    @property
+    def ready(self):
+        # TODO: this
+        return len(self.ack_queue) < self.ack_queue_len
+
+    def __nonzero__(self):
+        return self.ser.__nonzero__()
 
 class AbstractLightScene(object):
     """
@@ -154,32 +256,21 @@ def main():
         logging.info("settings: %s" % pformat(ser.get_settings()))
         ser.reset_input_buffer()
         ser.flush()
-        sesh = TelecortexSession(ser)
-        while ser:
+        sesh = TelecortexSession(ser, 0)
+        sesh.set_linenum(0)
+        while sesh:
             # Listen for IDLE or timeout
-            line = ser.readline()
-            received_idle = False
-            while True:
-                logging.debug("in_waiting: %s" % ser.in_waiting)
-                logging.info("received line: %s" % line)
-                if line.startswith(b"IDLE"):
-                    received_idle = True
-                if not ser.in_waiting:
-                    break
-                line = ser.readline()
-            if not received_idle:
-                logging.debug("did not recieve IDLE")
-            # TODO: send the rest of the frames
-            if received_idle:
+            sesh.parse_responses()
+            if sesh.ready:
                 # send some HSV rainbowz
                 # H = frameno, S = 255 (0xff), V = 127 (0x7f)
                 logging.debug("Drawing frame %s" % frameno)
                 pixel_str = base64.b64encode(
                     bytes([frameno % 255, 255, 127])
-                )
+                ).decode('ascii')
                 for panel in range(PANELS):
-                    sesh.send_cmd_async(b"M2603 Q%d V%s" % (panel, pixel_str))
-                sesh.send_cmd_async(b"M2610")
+                    sesh.send_cmd_sync("M2603 Q%d V%s" % (panel, pixel_str))
+                sesh.send_cmd_sync("M2610")
                 frameno = (frameno + 1) % 255
 
 if __name__ == '__main__':
