@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 from builtins import bytes, chr, str
 
 import base64
-import logging
+import coloredlogs, logging
 import re
 import time
 from collections import OrderedDict
@@ -11,7 +11,18 @@ from pprint import pformat, pprint
 import serial
 from serial.tools import list_ports
 
-logging.basicConfig(level=logging.WARN)
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+# coloredlogs.install(level='INFO', logger=logger)
+file_handler = logging.FileHandler(".rainbowz.log")
+file_handler.setLevel(logging.DEBUG)
+stream_handler = logging.StreamHandler()
+stream_handler.setLevel(logging.WARN)
+stream_handler.setFormatter(coloredlogs.ColoredFormatter())
+stream_handler.addFilter(coloredlogs.HostNameFilter())
+stream_handler.addFilter(coloredlogs.ProgramNameFilter())
+logger.addHandler(file_handler)
+logger.addHandler(stream_handler)
 
 TELECORTEX_DEV = "/dev/tty.usbmodem35"
 # to get these values:
@@ -62,6 +73,7 @@ class TelecortexSession(object):
     """
 
     ack_queue_len = ACK_QUEUE_LEN
+    ser_buff_size = 64
     re_error = r"^E(?P<errnum>\d+):\s*(?P<err>.*)"
     re_line_ok = r"^N(?P<linenum>\d+):\s*OK"
     re_line_error = r"^N(?P<linenum>\d+):\s*" + re_error[1:]
@@ -188,7 +200,9 @@ class TelecortexSession(object):
     @property
     def ready(self):
         # TODO: this
-        return len(self.ack_queue) < self.ack_queue_len
+        return \
+            len(self.ack_queue) < self.ack_queue_len \
+            and sum(map(len, self.ack_queue.values())) < self.ser_buff_size
 
     def __nonzero__(self):
         return bool(self.ser)
