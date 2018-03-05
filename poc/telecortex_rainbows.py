@@ -62,9 +62,9 @@ class TelecortexSession(object):
     """
 
     ack_queue_len = ACK_QUEUE_LEN
-    re_error = r"^E(?P<errnum>\d+):\s+(?P<err>.*)"
-    re_line_ok = r"^N(?P<linenum>\d+):\s+OK"
-    re_line_error = r"^N(?P<linenum>\d+):\s+" + re_error[1:]
+    re_error = r"^E(?P<errnum>\d+):\s*(?P<err>.*)"
+    re_line_ok = r"^N(?P<linenum>\d+):\s*OK"
+    re_line_error = r"^N(?P<linenum>\d+):\s*" + re_error[1:]
     re_pixel_set_rate = r"^;LOO: Pixel set rate: (?P<rate>[\d\.]+)"
 
     def __init__(self, ser, linecount=0):
@@ -86,14 +86,32 @@ class TelecortexSession(object):
         cmd = "%s\n" % cmd
         self.ser.write(cmd.encode('ascii'))
 
+    def reset_board(self):
+
+        self.ser.reset_output_buffer()
+        self.ser.flush()
+        self.send_cmd_async("M9999 ;")
+        while self.ser.in_waiting:
+            self.ser.readline()
+
+        # wiggle DTR and CTS (only works with AVR boards)
+        self.ser.dtr = not self.ser.dtr
+        self.ser.rts = not self.ser.rts
+        time.sleep(0.1)
+        self.ser.dtr = not self.ser.dtr
+        self.ser.rts = not self.ser.rts
+        time.sleep(0.1)
+
+        self.set_linenum(0)
+
     def clear_ack_queue(self):
         logging.info("clearing ack queue: %s" % self.ack_queue.keys())
         self.ack_queue = OrderedDict()
 
     def raise_error(self, errnum, err, linenum=None):
-        warning = "error %d: %s" % (
+        warning = "error %s: %s" % (
             errnum,
-            err,
+            err
         )
         if linenum is not None:
             warning = "line %d, %s\nOriginal Command: %s" % (
@@ -105,10 +123,11 @@ class TelecortexSession(object):
 
     def set_linenum(self, linenum):
         self.send_cmd_async("M110 N%d" % linenum)
+        self.linecount = linenum + 1
 
     def get_line(self):
         line = self.ser.readline().decode('ascii')
-        if line[-1] == '\n':
+        if line and line[-1] == '\n':
             line = line[:-1]
         return line
 
@@ -135,7 +154,7 @@ class TelecortexSession(object):
                         linenum = None
                     assert \
                         linenum and linenum in self.ack_queue, \
-                        "received an acknowledgement for an unknown command"
+                        "received an acknowledgement for an unknown command:\n%s" % line
                     del self.ack_queue[linenum]
                 elif re.match(self.re_line_error, line):
                     match = re.search(self.re_line_error, line).groupdict()
@@ -209,34 +228,6 @@ class PayloadHSVLightScene(AbstractLightScene):
     Each panel is lit by an entire HSV payload, as in M2600-M2601
     """
 
-# when run from build:
-"""
-{'baudrate': 9600,
- 'bytesize': 8,
- 'dsrdtr': False,
- 'inter_byte_timeout': None,
- 'parity': 'N',
- 'rtscts': False,
- 'stopbits': 1,
- 'timeout': None,
- 'write_timeout': None,
- 'xonxoff': False}
-"""
-
-# when run from terminal:
-"""
-{'baudrate': 9600,
- 'bytesize': 8,
- 'dsrdtr': False,
- 'inter_byte_timeout': None,
- 'parity': 'N',
- 'rtscts': False,
- 'stopbits': 1,
- 'timeout': None,
- 'write_timeout': None,
- 'xonxoff': False}
-"""
-
 def pix_bytes2unicode(*pixels):
     return base64.b64encode(
         bytes(pixels)
@@ -259,10 +250,8 @@ def main():
     frameno = 0
     with serial.Serial(port=target_device, baudrate=TELECORTEX_BAUD, timeout=1) as ser:
         logging.info("settings: %s" % pformat(ser.get_settings()))
-        ser.reset_input_buffer()
-        ser.flush()
-        sesh = TelecortexSession(ser, 0)
-        sesh.set_linenum(0)
+        sesh = TelecortexSession(ser)
+        sesh.reset_board()
         while sesh:
             # Listen for IDLE or timeout
             sesh.parse_responses()
