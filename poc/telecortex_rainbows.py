@@ -172,7 +172,7 @@ class TelecortexSession(object):
         return len(self.ack_queue) < self.ack_queue_len
 
     def __nonzero__(self):
-        return self.ser.__nonzero__()
+        return bool(self.ser)
 
 class AbstractLightScene(object):
     """
