@@ -42,6 +42,7 @@ TELECORTEX_PID = 0x0483
 TELECORTEX_BAUD = 9600
 ACK_QUEUE_LEN = 3
 PANELS = 4
+DO_SINGLE = True
 
 
 # as of 2018-03-04, init looks like this:
@@ -83,14 +84,16 @@ class TelecortexSession(object):
     # TODO: implement soft reset when approaching long int linenum so it can run forever
 
     ack_queue_len = ACK_QUEUE_LEN
-    ser_buff_size = 230
-    chunk_size = 128
+    ser_buff_size = 460
+    chunk_size = 200
     re_error = r"^E(?P<errnum>\d+):\s*(?P<err>.*)"
     re_line_ok = r"^N(?P<linenum>\d+):\s*OK"
-    re_line_error = r"^N(?P<linenum>\d+):\s*" + re_error[1:]
+    re_line_error = r"^N(?P<linenum>\d+)\s*" + re_error[1:]
+    re_set = r"^;SET: .*"
     re_rates = r"^;LOO: CMD_RATE:\s+(?P<cmd_rate>[\d\.]+) cps, PIX_RATE:\s+(?P<pix_rate>[\d\.]+) pps"
     re_get_cmd_time = r"^;LOO: get_cmd: (?P<time>[\d\.]+)"
     re_process_cmd_time = r"^;LOO: process_cmd: (?P<time>[\d\.]+)"
+    re_enq = r"^;ENQ: .*"
     do_crc = True
 
     def __init__(self, ser, linecount=0):
@@ -248,6 +251,10 @@ class TelecortexSession(object):
                     match = re.search(self.re_process_cmd_time, line).groupdict()
                     _time = match.get('time')
                     logging.warn("process cmd: %s" % _time)
+                elif re.match(self.re_set, line):
+                    logging.warn(line)
+                elif re.match(self.re_enq, line):
+                    logging.warn(line)
 
             elif line.startswith("N"):
                 idles_recvd = 0
@@ -271,6 +278,7 @@ class TelecortexSession(object):
                                 self.ack_queue.keys()
                             )
                         )
+                # example: N126 E010:Line numbers not sequential. Current: 126, Previous: 1
                 elif re.match(self.re_line_error, line):
                     match = re.search(self.re_line_error, line).groupdict()
                     try:
@@ -377,7 +385,7 @@ def pix_array2text(*pixels):
     # response = six.binary_type(base64.b64encode(
     #     bytes(pixels)
     # ))
-    # logging.debug("pix_text: %s" % repr(response))
+    logging.debug("pix_text: %s" % repr(response))
     return response
 
 PANEL_LENGTHS = [
@@ -417,9 +425,12 @@ def main():
                 frameno, 255, 127
             )
             for panel in range(PANELS):
-                panel_length = PANEL_LENGTHS[panel]
-                panel_pixels = [pixel_str] * panel_length
-                sesh.chunk_payload("M2601", "Q%d" % panel, panel_pixels)
+                if DO_SINGLE:
+                    sesh.send_cmd_sync("M2603","Q%d V%s" % (panel, pixel_str))
+                else:
+                    panel_length = PANEL_LENGTHS[panel]
+                    panel_pixels = [pixel_str] * panel_length
+                    sesh.chunk_payload("M2601", "Q%d" % panel, panel_pixels)
             sesh.send_cmd_sync("M2610")
             frameno = (frameno + 1) % 255
 
