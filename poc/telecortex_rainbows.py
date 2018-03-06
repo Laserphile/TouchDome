@@ -4,6 +4,7 @@ import base64
 import logging
 import re
 import time
+from datetime import datetime
 from collections import OrderedDict
 from pprint import pformat, pprint
 
@@ -15,7 +16,7 @@ from kitchen.text import converters
 import six
 
 STREAM_LOG_LEVEL = logging.WARN
-STREAM_LOG_LEVEL = logging.DEBUG
+# STREAM_LOG_LEVEL = logging.DEBUG
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -80,11 +81,14 @@ class TelecortexSession(object):
     # TODO: implement soft reset when approaching long int linenum so it can run forever
 
     ack_queue_len = ACK_QUEUE_LEN
-    ser_buff_size = 64
+    ser_buff_size = 230
+    chunk_size = 64
     re_error = r"^E(?P<errnum>\d+):\s*(?P<err>.*)"
     re_line_ok = r"^N(?P<linenum>\d+):\s*OK"
     re_line_error = r"^N(?P<linenum>\d+):\s*" + re_error[1:]
     re_pixel_set_rate = r"^;LOO: Pixel set rate: (?P<rate>[\d\.]+)"
+    re_get_cmd_time = r"^;LOO: get_cmd: (?P<time>[\d\.]+)"
+    re_process_cmd_time = r"^;LOO: process_cmd: (?P<time>[\d\.]+)"
 
     def __init__(self, ser, linecount=0):
         super(TelecortexSession, self).__init__()
@@ -131,6 +135,38 @@ class TelecortexSession(object):
 
         self.set_linenum(0)
 
+    def chunk_payload(self, cmd, static_args, payload, sync=True):
+        offset = 0;
+        while payload:
+            chunk_args = static_args
+            if offset > 0:
+                chunk_args += " S%s" % offset
+            chunk_args += " V"
+            skeleton_cmd = self.fmt_cmd(
+                self.linecount,
+                cmd,
+                chunk_args
+            )
+            # 4 bytes per pixel because base64 encoded 24bit RGB
+            pixels_left = (self.chunk_size - len(skeleton_cmd) - len('\r\n'))/4
+            assert \
+                pixels_left > 0, \
+                "not enough bytes left to chunk cmd, skeleton: %s, chunk_size: %s" % (
+                    skeleton_cmd,
+                    self.chunk_size
+                )
+            chunk_args += "".join(payload[:pixels_left])
+            while self.bytes_left < self.chunk_size:
+                self.parse_responses()
+
+            self.send_cmd_sync(
+                cmd,
+                chunk_args
+            )
+
+            payload = payload[pixels_left:]
+            offset += pixels_left
+
     def clear_ack_queue(self):
         logging.info("clearing ack queue: %s" % self.ack_queue.keys())
         self.ack_queue = OrderedDict()
@@ -174,18 +210,27 @@ class TelecortexSession(object):
 
     def parse_responses(self):
         line = self.get_line()
-        received_idle = False
+        idles_recvd = 0
         while True:
             logging.info("received line: %s" % line)
             if line.startswith("IDLE"):
-                received_idle = True
+                idles_recvd += 1
             elif line.startswith(";"):
                 if re.match(self.re_pixel_set_rate, line):
                     match = re.search(self.re_pixel_set_rate, line).groupdict()
                     rate = match.get('rate')
                     logging.warn("set rate: %s" % rate)
+                elif re.match(self.re_get_cmd_time, line):
+                    match = re.search(self.re_get_cmd_time, line).groupdict()
+                    _time = match.get('time')
+                    logging.warn("get cmd: %s" % _time)
+                elif re.match(self.re_process_cmd_time, line):
+                    match = re.search(self.re_process_cmd_time, line).groupdict()
+                    _time = match.get('time')
+                    logging.warn("process cmd: %s" % _time)
+
             elif line.startswith("N"):
-                received_idle = False
+                idles_recvd = 0
                 # either "N\d+: OK" or N\d+: E\d+:
                 if re.match(self.re_line_ok, line):
                     match = re.search(self.re_line_ok, line).groupdict()
@@ -193,17 +238,19 @@ class TelecortexSession(object):
                         linenum = int(match.get('linenum'))
                     except ValueError:
                         linenum = None
-                    assert \
-                        linenum is not None and linenum in self.ack_queue, \
-                        (
-                            "received an acknowledgement for an unknown command:\n"
-                            "%s\n"
-                            "known linenums: %s"
-                        ) % (
-                            line,
-                            self.ack_queue.keys()
+                    if linenum is not None and linenum in self.ack_queue:
+                        del self.ack_queue[linenum]
+                    else:
+                        logging.warn(
+                            (
+                                "received an acknowledgement for an unknown command:\n"
+                                "%s\n"
+                                "known linenums: %s"
+                            ) % (
+                                repr(line),
+                                self.ack_queue.keys()
+                            )
                         )
-                    del self.ack_queue[linenum]
                 elif re.match(self.re_line_error, line):
                     match = re.search(self.re_line_error, line).groupdict()
                     try:
@@ -216,7 +263,7 @@ class TelecortexSession(object):
                         linenum
                     )
             elif line.startswith("E"):
-                received_idle = False
+                idles_recvd = 0
                 if re.match(self.re_error, line):
                     match = re.search(self.re_error, line).groupdict()
                     self.raise_error(
@@ -224,14 +271,27 @@ class TelecortexSession(object):
                         match.get('err')
                     )
             else:
-                logging.debug("line not recognised")
+                logging.warn("line not recognised:\n%s\n" % repr(line))
             if not self.ser.in_waiting:
                 break
             line = self.get_line()
-        if received_idle:
+        if idles_recvd:
             self.clear_ack_queue()
+            if idles_recvd > 1:
+                logging.warning('redundant idles_recvd: %s' % idles_recvd)
         # else:
         #     logging.debug("did not recieve IDLE")
+
+    @property
+    def bytes_left(self):
+        ser_buff_len = 0
+        for linenum, ack_cmd in self.ack_queue.items():
+            if ack_cmd[0] == "M110":
+                return 0
+            ser_buff_len += len(self.fmt_cmd(linenum, *ack_cmd))
+            if ser_buff_len > self.ser_buff_size:
+                return 0
+        return self.ser_buff_size - ser_buff_len
 
     @property
     def ready(self):
@@ -283,18 +343,21 @@ class PayloadHSVLightScene(AbstractLightScene):
     """
 
 def pix_array2text(*pixels):
-    response = base64.b64encode(
-        b''.join([
-            six.int2byte(pixel) \
-            for pixel in pixels
-        ])
-    )
+    # logging.debug("pixels: %s" % repr(["%02x" % pixel for pixel in pixels]))
+    # logging.debug("bytes: %s" % repr([six.int2byte(pixel) for pixel in pixels]))
+    pix_bytestring = b''.join([
+        six.int2byte(pixel % 256) \
+        for pixel in pixels
+    ])
+    # logging.debug("bytestring: %s" % repr(pix_bytestring))
+
+    response = base64.b64encode(pix_bytestring)
     response = six.text_type(response, 'ascii')
     # response = ''.join(map(six.unichr, pixels))
     # response = six.binary_type(base64.b64encode(
     #     bytes(pixels)
     # ))
-    logging.debug("pix_text: %s" % repr(response))
+    # logging.debug("pix_text: %s" % repr(response))
     return response
 
 PANEL_LENGTHS = [
@@ -305,9 +368,11 @@ def main():
     # TODO: enumerate serial ports, select board by pid/vid
 
     # Detect serial device:
+    logging.debug("\n\n\nnew session at %s" % datetime.now().isoformat())
+
     target_device = TELECORTEX_DEV
     for port_info in list_ports.comports():
-        logging.debug("found serial device vid: %s, pid: %s" % (port_info.vid, port_info.pid))
+        # logging.debug("found serial device vid: %s, pid: %s" % (port_info.vid, port_info.pid))
         if port_info.vid == TELECORTEX_VID: #and port_info.pid == TELECORTEX_PID:
             logging.info("found target device: %s" % port_info.device)
             target_device = port_info.device
@@ -317,22 +382,24 @@ def main():
     # Connect to serial
     frameno = 0
     with serial.Serial(port=target_device, baudrate=TELECORTEX_BAUD, timeout=1) as ser:
-        logging.info("settings: %s" % pformat(ser.get_settings()))
+        # logging.debug("settings: %s" % pformat(ser.get_settings()))
         sesh = TelecortexSession(ser)
         sesh.reset_board()
         while sesh:
             # Listen for IDLE or timeout
             sesh.parse_responses()
-            if not sesh.ready:
+            if not sesh.bytes_left:
                 continue
             # send some HSV rainbowz
             # H = frameno, S = 255 (0xff), V = 127 (0x7f)
             logging.debug("Drawing frame %s" % frameno)
             pixel_str = pix_array2text(
-                frameno % 255, 255, 127
+                frameno, 255, 127
             )
             for panel in range(PANELS):
-                sesh.send_cmd_sync("M2603","Q%d V%s" % (panel, pixel_str))
+                panel_length = PANEL_LENGTHS[panel]
+                panel_pixels = [pixel_str] * panel_length
+                sesh.chunk_payload("M2601", "Q%d" % panel, panel_pixels)
             sesh.send_cmd_sync("M2610")
             frameno = (frameno + 1) % 255
 
