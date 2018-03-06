@@ -7,6 +7,7 @@ import logging
 import re
 import os
 import time
+import itertools
 from datetime import datetime
 from collections import OrderedDict
 from pprint import pformat, pprint
@@ -85,16 +86,20 @@ class TelecortexSession(object):
     # TODO: implement soft reset when approaching long int linenum so it can run forever
 
     ack_queue_len = ACK_QUEUE_LEN
-    ser_buff_size = 460
-    chunk_size = 200
+    ser_buff_size = 230
+    chunk_size = 115
     re_error = r"^E(?P<errnum>\d+):\s*(?P<err>.*)"
     re_line_ok = r"^N(?P<linenum>\d+):\s*OK"
     re_line_error = r"^N(?P<linenum>\d+)\s*" + re_error[1:]
-    re_set = r"^;SET: .*"
-    re_rates = r"^;LOO: CMD_RATE:\s+(?P<cmd_rate>[\d\.]+) cps, PIX_RATE:\s+(?P<pix_rate>[\d\.]+) pps"
-    re_get_cmd_time = r"^;LOO: get_cmd: (?P<time>[\d\.]+)"
-    re_process_cmd_time = r"^;LOO: process_cmd: (?P<time>[\d\.]+)"
-    re_enq = r"^;ENQ: .*"
+    re_set = r"^;SET: "
+    re_loo = r"^;LOO: "
+    re_loo_rates = r"^%sCMD_RATE:\s+(?P<cmd_rate>[\d\.]+) cps, PIX_RATE:\s+(?P<pix_rate>[\d\.]+) pps" % re_loo
+    re_loo_get_cmd_time = r"%sget_cmd: (?P<time>[\d\.]+)" % re_loo
+    re_loo_process_cmd_time = r"%sprocess_cmd: (?P<time>[\d\.]+)" % re_loo
+    re_enq = r"^;ENQ: "
+    re_gco = r"^;GCO: "
+    re_gco_encoded = r"%s-> payload: " % re_gco
+    re_gco_decoded = r"%s-> decoded payload: " % re_gco
     do_crc = True
 
     def __init__(self, ser, linecount=0):
@@ -110,12 +115,12 @@ class TelecortexSession(object):
             cmd = "N%d %s" % (linenum, cmd)
         return cmd
 
-    def add_checksum(self, cmd):
+    def add_checksum(self, full_cmd):
         checksum = 0
-        cmd += ' '
-        for c in cmd:
+        full_cmd += ' '
+        for c in full_cmd:
             checksum ^= ord(c)
-        return cmd + "*%d" % checksum
+        return full_cmd + "*%d" % checksum
 
     def send_cmd_sync(self, cmd, args=None):
         full_cmd = self.fmt_cmd(self.linecount, cmd, args)
@@ -178,14 +183,14 @@ class TelecortexSession(object):
                     skeleton_cmd,
                     self.chunk_size
                 )
-            chunk_args += "".join(payload[:pixels_left])
+            chunk_args += "".join(payload[:(pixels_left*4)])
 
             self.send_cmd_sync(
                 cmd,
                 chunk_args
             )
 
-            payload = payload[pixels_left:]
+            payload = payload[(pixels_left*4):]
             offset += pixels_left
 
     def clear_ack_queue(self):
@@ -239,22 +244,26 @@ class TelecortexSession(object):
             if line.startswith("IDLE"):
                 idles_recvd += 1
             elif line.startswith(";"):
-                if re.match(self.re_rates, line):
-                    match = re.search(self.re_rates, line).groupdict()
+                if re.match(self.re_loo_rates, line):
+                    match = re.search(self.re_loo_rates, line).groupdict()
                     pix_rate = int(match.get('pix_rate'))
                     cmd_rate = int(match.get('cmd_rate'))
                     logging.warn("CMD_RATE: %5d, PIX_RATE: %7d" % (cmd_rate, pix_rate))
-                elif re.match(self.re_get_cmd_time, line):
-                    match = re.search(self.re_get_cmd_time, line).groupdict()
+                elif re.match(self.re_loo_get_cmd_time, line):
+                    match = re.search(self.re_loo_get_cmd_time, line).groupdict()
                     _time = match.get('time')
                     logging.warn("get cmd: %s" % _time)
-                elif re.match(self.re_process_cmd_time, line):
-                    match = re.search(self.re_process_cmd_time, line).groupdict()
+                elif re.match(self.re_loo_process_cmd_time, line):
+                    match = re.search(self.re_loo_process_cmd_time, line).groupdict()
                     _time = match.get('time')
                     logging.warn("process cmd: %s" % _time)
                 elif re.match(self.re_set, line):
                     logging.warn(line)
                 elif re.match(self.re_enq, line):
+                    logging.warn(line)
+                elif re.match(self.re_gco_decoded, line):
+                    logging.warn(line)
+                elif re.match(self.re_gco_encoded, line):
                     logging.warn(line)
 
             elif line.startswith("N"):
@@ -416,22 +425,26 @@ def main():
         sesh.reset_board()
         while sesh:
             # Listen for IDLE or timeout
-            sesh.parse_responses()
-            if not sesh.bytes_left:
-                continue
             # send some HSV rainbowz
             # H = frameno, S = 255 (0xff), V = 127 (0x7f)
             logging.debug("Drawing frame %s" % frameno)
-            pixel_str = pix_array2text(
-                frameno, 255, 127
-            )
             for panel in range(PANELS):
                 if DO_SINGLE:
+                    pixel_str = pix_array2text(
+                        frameno, 255, 127
+                    )
                     sesh.send_cmd_sync("M2603","Q%d V%s" % (panel, pixel_str))
                 else:
                     panel_length = PANEL_LENGTHS[panel]
-                    panel_pixels = [pixel_str] * panel_length
-                    sesh.chunk_payload("M2601", "Q%d" % panel, panel_pixels)
+                    logging.info("panel: %s; panel_length: %s" % (panel, panel_length))
+                    pixel_list = [
+                        [(frameno + pixel) % 256, 255, 127] \
+                        for pixel in range(panel_length)
+                    ]
+                    logging.info("pixel_list: %s" % pformat(pixel_list))
+                    pixel_list = list(itertools.chain(*pixel_list))
+                    pixel_str = pix_array2text(*pixel_list)
+                    sesh.chunk_payload("M2601", "Q%d" % panel, pixel_str)
             sesh.send_cmd_sync("M2610")
             frameno = (frameno + 1) % 255
 
