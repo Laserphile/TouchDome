@@ -86,7 +86,7 @@ class TelecortexSession(object):
     re_error = r"^E(?P<errnum>\d+):\s*(?P<err>.*)"
     re_line_ok = r"^N(?P<linenum>\d+):\s*OK"
     re_line_error = r"^N(?P<linenum>\d+):\s*" + re_error[1:]
-    re_pixel_set_rate = r"^;LOO: Pixel set rate: (?P<rate>[\d\.]+)"
+    re_rates = r"^;LOO: CMD_RATE:\s+(?P<cmd_rate>[\d\.]+) cps, PIX_RATE:\s+(?P<pix_rate>[\d\.]+) pps"
     re_get_cmd_time = r"^;LOO: get_cmd: (?P<time>[\d\.]+)"
     re_process_cmd_time = r"^;LOO: process_cmd: (?P<time>[\d\.]+)"
 
@@ -216,10 +216,11 @@ class TelecortexSession(object):
             if line.startswith("IDLE"):
                 idles_recvd += 1
             elif line.startswith(";"):
-                if re.match(self.re_pixel_set_rate, line):
-                    match = re.search(self.re_pixel_set_rate, line).groupdict()
-                    rate = match.get('rate')
-                    logging.warn("set rate: %s" % rate)
+                if re.match(self.re_rates, line):
+                    match = re.search(self.re_rates, line).groupdict()
+                    pix_rate = int(match.get('pix_rate'))
+                    cmd_rate = int(match.get('cmd_rate'))
+                    logging.warn("CMD_RATE: %5d, PIX_RATE: %7d" % (cmd_rate, pix_rate))
                 elif re.match(self.re_get_cmd_time, line):
                     match = re.search(self.re_get_cmd_time, line).groupdict()
                     _time = match.get('time')
