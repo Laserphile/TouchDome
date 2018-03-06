@@ -5,6 +5,7 @@ print("Hey there pal, don't forget to `pip install -r poc/requirements.txt`")
 import base64
 import logging
 import re
+import os
 import time
 from datetime import datetime
 from collections import OrderedDict
@@ -22,12 +23,12 @@ STREAM_LOG_LEVEL = logging.WARN
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
-# coloredlogs.install(level='INFO', logger=logger)
 file_handler = logging.FileHandler(".rainbowz.log")
 file_handler.setLevel(logging.DEBUG)
 stream_handler = logging.StreamHandler()
 stream_handler.setLevel(STREAM_LOG_LEVEL)
-stream_handler.setFormatter(coloredlogs.ColoredFormatter())
+if os.name != 'nt':
+    stream_handler.setFormatter(coloredlogs.ColoredFormatter())
 stream_handler.addFilter(coloredlogs.HostNameFilter())
 stream_handler.addFilter(coloredlogs.ProgramNameFilter())
 # logger.addHandler(file_handler)
