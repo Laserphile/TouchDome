@@ -1,5 +1,7 @@
 from __future__ import unicode_literals
 
+print("Hey there pal, don't forget to `pip install -r poc/requirements.txt`")
+
 import base64
 import logging
 import re
@@ -28,7 +30,7 @@ stream_handler.setLevel(STREAM_LOG_LEVEL)
 stream_handler.setFormatter(coloredlogs.ColoredFormatter())
 stream_handler.addFilter(coloredlogs.HostNameFilter())
 stream_handler.addFilter(coloredlogs.ProgramNameFilter())
-logger.addHandler(file_handler)
+# logger.addHandler(file_handler)
 logger.addHandler(stream_handler)
 
 TELECORTEX_DEV = "/dev/tty.usbmodem35"
@@ -82,13 +84,14 @@ class TelecortexSession(object):
 
     ack_queue_len = ACK_QUEUE_LEN
     ser_buff_size = 230
-    chunk_size = 64
+    chunk_size = 128
     re_error = r"^E(?P<errnum>\d+):\s*(?P<err>.*)"
     re_line_ok = r"^N(?P<linenum>\d+):\s*OK"
     re_line_error = r"^N(?P<linenum>\d+):\s*" + re_error[1:]
     re_rates = r"^;LOO: CMD_RATE:\s+(?P<cmd_rate>[\d\.]+) cps, PIX_RATE:\s+(?P<pix_rate>[\d\.]+) pps"
     re_get_cmd_time = r"^;LOO: get_cmd: (?P<time>[\d\.]+)"
     re_process_cmd_time = r"^;LOO: process_cmd: (?P<time>[\d\.]+)"
+    do_crc = True
 
     def __init__(self, ser, linecount=0):
         super(TelecortexSession, self).__init__()
@@ -98,23 +101,39 @@ class TelecortexSession(object):
         self.ack_queue = OrderedDict()
 
     def fmt_cmd(self, linenum=None, cmd=None, args=None):
-        cmd = " ".join(filter(None, [cmd, args])) + '\n'
+        cmd = " ".join(filter(None, [cmd, args]))
         if linenum is not None:
             cmd = "N%d %s" % (linenum, cmd)
         return cmd
 
+    def add_checksum(self, cmd):
+        checksum = 0
+        cmd += ' '
+        for c in cmd:
+            checksum ^= ord(c)
+        return cmd + "*%d" % checksum
+
     def send_cmd_sync(self, cmd, args=None):
+        full_cmd = self.fmt_cmd(self.linecount, cmd, args)
+        if self.do_crc:
+            full_cmd = self.add_checksum(full_cmd)
+        while self.bytes_left < len(full_cmd):
+            self.parse_responses()
+
         self.ack_queue[self.linecount] = (cmd, args)
-        cmd = self.fmt_cmd(self.linecount, cmd, args)
-        logging.info("sending cmd sync, %s" % repr(cmd))
-        self.write_text(cmd)
+        logging.info("sending cmd sync, %s" % repr(full_cmd))
+        self.write_line(full_cmd)
         self.linecount += 1
 
     def send_cmd_async(self, cmd, args=None):
-        cmd = self.fmt_cmd(None, cmd, args)
-        logging.info("sending cmd async %s" % repr(cmd))
-        cmd = "%s" % cmd
-        self.write_text(cmd)
+        full_cmd = self.fmt_cmd(None, cmd, args)
+        if self.do_crc:
+            full_cmd = self.add_checksum(full_cmd)
+        while self.bytes_left < len(full_cmd):
+            self.parse_responses()
+
+        logging.info("sending cmd async %s" % repr(full_cmd))
+        self.write_line(full_cmd)
 
     def reset_board(self):
 
@@ -156,8 +175,6 @@ class TelecortexSession(object):
                     self.chunk_size
                 )
             chunk_args += "".join(payload[:pixels_left])
-            while self.bytes_left < self.chunk_size:
-                self.parse_responses()
 
             self.send_cmd_sync(
                 cmd,
@@ -188,9 +205,11 @@ class TelecortexSession(object):
         self.send_cmd_sync("M110", "N%d" % linenum)
         self.linecount = linenum + 1
 
-    def write_text(self, text):
+    def write_line(self, text):
         # byte_array = [six.byte2int(j) for j in text]
         # byte_array = six.binary_type(text, 'latin-1')
+        if not text[-1] == '\n':
+            text = text + '\n'
         assert isinstance(text, six.text_type), "text should be text_type"
         if six.PY3:
             byte_array = six.binary_type(text, 'latin-1')
