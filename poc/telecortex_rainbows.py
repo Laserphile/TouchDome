@@ -41,7 +41,7 @@ TELECORTEX_DEV = "/dev/tty.usbmodem35"
 # python -m serial.tools.list_ports
 TELECORTEX_VID = 0x16C0
 TELECORTEX_PID = 0x0483
-TELECORTEX_BAUD = 38400
+TELECORTEX_BAUD = 57600
 ACK_QUEUE_LEN = 3
 PANELS = 4
 DO_SINGLE = True
@@ -86,8 +86,8 @@ class TelecortexSession(object):
     # TODO: implement soft reset when approaching long int linenum so it can run forever
 
     ack_queue_len = ACK_QUEUE_LEN
-    ser_buff_size = 1680
-    chunk_size = 225
+    ser_buff_size = 1024
+    chunk_size = 256
     re_error = r"^E(?P<errnum>\d+):\s*(?P<err>.*)"
     re_line_ok = r"^N(?P<linenum>\d+):\s*OK"
     re_line_error = r"^N(?P<linenum>\d+)\s*" + re_error[1:]
@@ -162,7 +162,7 @@ class TelecortexSession(object):
         time.sleep(0.1)
         self.ser.dtr = not self.ser.dtr
         self.ser.rts = not self.ser.rts
-        time.sleep(3.0)
+        time.sleep(0.5)
 
         while self.ser.in_waiting:
             self.ser.readline()
