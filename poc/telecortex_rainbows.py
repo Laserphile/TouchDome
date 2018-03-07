@@ -32,7 +32,7 @@ if os.name != 'nt':
     stream_handler.setFormatter(coloredlogs.ColoredFormatter())
 stream_handler.addFilter(coloredlogs.HostNameFilter())
 stream_handler.addFilter(coloredlogs.ProgramNameFilter())
-# logger.addHandler(file_handler)
+logger.addHandler(file_handler)
 logger.addHandler(stream_handler)
 
 TELECORTEX_DEV = "/dev/tty.usbmodem35"
