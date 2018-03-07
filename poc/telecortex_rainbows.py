@@ -22,9 +22,16 @@ import six
 STREAM_LOG_LEVEL = logging.WARN
 # STREAM_LOG_LEVEL = logging.DEBUG
 
+LOG_FILE = ".rainbowz.log"
+PROC_DATA_FILE = "rainbowz_proc.csv"
+GET_DATA_FILE = "rainbowz_get.csv"
+ENABLE_LOG_FILE = True
+ENABLE_PROC_DATA = True
+ENABLE_GET_DATA = False
+
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
-file_handler = logging.FileHandler(".rainbowz.log")
+file_handler = logging.FileHandler(LOG_FILE)
 file_handler.setLevel(logging.DEBUG)
 stream_handler = logging.StreamHandler()
 stream_handler.setLevel(STREAM_LOG_LEVEL)
@@ -32,7 +39,8 @@ if os.name != 'nt':
     stream_handler.setFormatter(coloredlogs.ColoredFormatter())
 stream_handler.addFilter(coloredlogs.HostNameFilter())
 stream_handler.addFilter(coloredlogs.ProgramNameFilter())
-logger.addHandler(file_handler)
+if ENABLE_LOG_FILE:
+    logger.addHandler(file_handler)
 logger.addHandler(stream_handler)
 
 TELECORTEX_DEV = "/dev/tty.usbmodem35"
@@ -44,7 +52,11 @@ TELECORTEX_PID = 0x0483
 TELECORTEX_BAUD = 57600
 ACK_QUEUE_LEN = 3
 PANELS = 4
-DO_SINGLE = True
+DO_SINGLE = False
+
+SHOW_RATES = True
+SHOW_STATS_GET = False
+SHOW_STATS_PROC = True
 
 
 # as of 2018-03-04, init looks like this:
@@ -99,6 +111,17 @@ class TelecortexSession(object):
         r"CMD_RATE:\s+(?P<cmd_rate>[\d\.]+)\s*cps,?\s*"
         r"PIX_RATE:\s+(?P<pix_rate>[\d\.]+)\s*pps,?\s*"
         r"QUEUE:\s+(?P<queue_occ>\d+)\s*/\s*(?P<queue_max>\d+)"
+    ) % re_loo
+    re_loo_get_stats = (
+        r"%s"
+        r"GET_CMD:\s+(?P<get_cmd>\d+),?\s*"
+        r"ENQD:\s+(?P<enqd>\d+),?\s*"
+    ) % re_loo
+    re_loo_proc_stats = (
+        r"%s"
+        r"CMD:\s+(?P<cmd>[A-Z] \d+),?\s*"
+        r"PROC_CMD:\s+(?P<proc_cmd>\d+),?\s*"
+        r"PIXLS:\s+(?P<pixls>\d+),?\s*"
     ) % re_loo
     re_loo_get_cmd_time = r"%sget_cmd: (?P<time>[\d\.]+)" % re_loo
     re_loo_process_cmd_time = r"%sprocess_cmd: (?P<time>[\d\.]+)" % re_loo
@@ -256,19 +279,29 @@ class TelecortexSession(object):
                     pix_rate = int(match.get('pix_rate'))
                     cmd_rate = int(match.get('cmd_rate'))
                     fps = int(match.get('fps'))
-                    queue_occ = match.get('queue_occ')
-                    queue_max = match.get('queue_max')
-                    logging.warn("FPS: %3s, CMD_RATE: %5d, PIX_RATE: %7d, QUEUE: %s" % (
-                        fps, cmd_rate, pix_rate, "%s / %s" % (queue_occ, queue_max)
-                    ))
-                elif re.match(self.re_loo_get_cmd_time, line):
-                    match = re.search(self.re_loo_get_cmd_time, line).groupdict()
-                    _time = match.get('time')
-                    logging.warn("get cmd: %s" % _time)
-                elif re.match(self.re_loo_process_cmd_time, line):
-                    match = re.search(self.re_loo_process_cmd_time, line).groupdict()
-                    _time = match.get('time')
-                    logging.warn("process cmd: %s" % _time)
+                    queue_occ = int(match.get('queue_occ'))
+                    queue_max = int(match.get('queue_max'))
+                    if SHOW_RATES:
+                        logging.warn("FPS: %3s, CMD_RATE: %5d, PIX_RATE: %7d, QUEUE: %s" % (
+                            fps, cmd_rate, pix_rate, "%s / %s" % (queue_occ, queue_max)
+                        ))
+                elif re.match(self.re_loo_get_stats, line):
+                    match = re.search(self.re_loo_get_stats, line).groupdict()
+                    get_cmd = int(match.get('get_cmd'))
+                    enqd = int(match.get('enqd'))
+                    if SHOW_STATS_GET:
+                        logging.warn("GET_CMD: %5d, ENQD: %d" % (
+                            get_cmd, enqd
+                        ))
+                elif re.match(self.re_loo_proc_stats, line):
+                    match = re.search(self.re_loo_proc_stats, line).groupdict()
+                    cmd = match.get('cmd')
+                    proc_cmd = int(match.get('proc_cmd'))
+                    pixls = int(match.get('pixls'))
+                    if SHOW_STATS_PROC:
+                        logging.warn("CMD: %6s, PROC_CMD: %5d, PIXLS: %3d" % (
+                            cmd, proc_cmd, pixls
+                        ))
                 elif re.match(self.re_set, line):
                     logging.warn(line)
                 elif re.match(self.re_enq, line):
