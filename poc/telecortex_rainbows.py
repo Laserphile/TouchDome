@@ -86,19 +86,19 @@ class TelecortexSession(object):
     # TODO: implement soft reset when approaching long int linenum so it can run forever
 
     ack_queue_len = ACK_QUEUE_LEN
-    ser_buff_size = 840
-    chunk_size = 210
+    ser_buff_size = 1680
+    chunk_size = 225
     re_error = r"^E(?P<errnum>\d+):\s*(?P<err>.*)"
     re_line_ok = r"^N(?P<linenum>\d+):\s*OK"
     re_line_error = r"^N(?P<linenum>\d+)\s*" + re_error[1:]
     re_set = r"^;SET: "
     re_loo = r"^;LOO: "
     re_loo_rates = (
-        r"^%s"
+        r"%s"
         r"FPS:\s+(?P<fps>[\d\.]+),?\s*"
         r"CMD_RATE:\s+(?P<cmd_rate>[\d\.]+)\s*cps,?\s*"
         r"PIX_RATE:\s+(?P<pix_rate>[\d\.]+)\s*pps,?\s*"
-        r"QUEUE:\s+(?P<queue>[\d\./\s]+),?\s+"
+        r"QUEUE:\s+(?P<queue_occ>\d+)\s*/\s*(?P<queue_max>\d+)"
     ) % re_loo
     re_loo_get_cmd_time = r"%sget_cmd: (?P<time>[\d\.]+)" % re_loo
     re_loo_process_cmd_time = r"%sprocess_cmd: (?P<time>[\d\.]+)" % re_loo
@@ -162,7 +162,7 @@ class TelecortexSession(object):
         time.sleep(0.1)
         self.ser.dtr = not self.ser.dtr
         self.ser.rts = not self.ser.rts
-        time.sleep(0.1)
+        time.sleep(3.0)
 
         while self.ser.in_waiting:
             self.ser.readline()
@@ -245,6 +245,7 @@ class TelecortexSession(object):
     def parse_responses(self):
         line = self.get_line()
         idles_recvd = 0
+        action_idle = True
         while True:
             logging.info("received line: %s" % line)
             if line.startswith("IDLE"):
@@ -255,9 +256,10 @@ class TelecortexSession(object):
                     pix_rate = int(match.get('pix_rate'))
                     cmd_rate = int(match.get('cmd_rate'))
                     fps = int(match.get('fps'))
-                    queue = match.get('queue')
+                    queue_occ = match.get('queue_occ')
+                    queue_max = match.get('queue_max')
                     logging.warn("FPS: %3s, CMD_RATE: %5d, PIX_RATE: %7d, QUEUE: %s" % (
-                        fps, cmd_rate, pix_rate, queue
+                        fps, cmd_rate, pix_rate, "%s / %s" % (queue_occ, queue_max)
                     ))
                 elif re.match(self.re_loo_get_cmd_time, line):
                     match = re.search(self.re_loo_get_cmd_time, line).groupdict()
@@ -277,7 +279,7 @@ class TelecortexSession(object):
                     logging.warn(line)
 
             elif line.startswith("N"):
-                idles_recvd = 0
+                action_idle = False
                 # either "N\d+: OK" or N\d+: E\d+:
                 if re.match(self.re_line_ok, line):
                     match = re.search(self.re_line_ok, line).groupdict()
@@ -311,7 +313,7 @@ class TelecortexSession(object):
                         linenum
                     )
             elif line.startswith("E"):
-                idles_recvd = 0
+                action_idle = False
                 if re.match(self.re_error, line):
                     match = re.search(self.re_error, line).groupdict()
                     self.raise_error(
@@ -323,10 +325,10 @@ class TelecortexSession(object):
             if not self.ser.in_waiting:
                 break
             line = self.get_line()
-        if idles_recvd:
+        if idles_recvd > 0:
+            logging.warning('Idle received x %s' % idles_recvd)
+        if action_idle and idles_recvd:
             self.clear_ack_queue()
-            if idles_recvd > 1:
-                logging.warning('redundant idles_recvd: %s' % idles_recvd)
         # else:
         #     logging.debug("did not recieve IDLE")
 
