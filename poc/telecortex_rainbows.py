@@ -41,7 +41,7 @@ TELECORTEX_DEV = "/dev/tty.usbmodem35"
 # python -m serial.tools.list_ports
 TELECORTEX_VID = 0x16C0
 TELECORTEX_PID = 0x0483
-TELECORTEX_BAUD = 9600
+TELECORTEX_BAUD = 38400
 ACK_QUEUE_LEN = 3
 PANELS = 4
 DO_SINGLE = True
@@ -86,16 +86,20 @@ class TelecortexSession(object):
     # TODO: implement soft reset when approaching long int linenum so it can run forever
 
     ack_queue_len = ACK_QUEUE_LEN
-    ser_buff_size = 230
-    chunk_size = 115
-    ser_buff_size = 420
+    ser_buff_size = 840
     chunk_size = 210
     re_error = r"^E(?P<errnum>\d+):\s*(?P<err>.*)"
     re_line_ok = r"^N(?P<linenum>\d+):\s*OK"
     re_line_error = r"^N(?P<linenum>\d+)\s*" + re_error[1:]
     re_set = r"^;SET: "
     re_loo = r"^;LOO: "
-    re_loo_rates = r"^%sFPS:\s+(?P<fps>[\d\.]+),\s+CMD_RATE:\s+(?P<cmd_rate>[\d\.]+)\s+cps,\s+PIX_RATE:\s+(?P<pix_rate>[\d\.]+)\s+pps" % re_loo
+    re_loo_rates = (
+        r"^%s"
+        r"FPS:\s+(?P<fps>[\d\.]+),?\s*"
+        r"CMD_RATE:\s+(?P<cmd_rate>[\d\.]+)\s*cps,?\s*"
+        r"PIX_RATE:\s+(?P<pix_rate>[\d\.]+)\s*pps,?\s*"
+        r"QUEUE:\s+(?P<queue>[\d\./\s]+),?\s+"
+    ) % re_loo
     re_loo_get_cmd_time = r"%sget_cmd: (?P<time>[\d\.]+)" % re_loo
     re_loo_process_cmd_time = r"%sprocess_cmd: (?P<time>[\d\.]+)" % re_loo
     re_enq = r"^;ENQ: "
@@ -251,7 +255,10 @@ class TelecortexSession(object):
                     pix_rate = int(match.get('pix_rate'))
                     cmd_rate = int(match.get('cmd_rate'))
                     fps = int(match.get('fps'))
-                    logging.warn("FPS: %3s, CMD_RATE: %5d, PIX_RATE: %7d" % (fps, cmd_rate, pix_rate))
+                    queue = match.get('queue')
+                    logging.warn("FPS: %3s, CMD_RATE: %5d, PIX_RATE: %7d, QUEUE: %s" % (
+                        fps, cmd_rate, pix_rate, queue
+                    ))
                 elif re.match(self.re_loo_get_cmd_time, line):
                     match = re.search(self.re_loo_get_cmd_time, line).groupdict()
                     _time = match.get('time')
