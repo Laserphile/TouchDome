@@ -182,7 +182,7 @@ class TelecortexSession(object):
                 chunk_args
             )
             # 4 bytes per pixel because base64 encoded 24bit RGB
-            pixels_left = (self.chunk_size - len(skeleton_cmd) - len('\r\n'))/4
+            pixels_left = int(self.chunk_size - len(skeleton_cmd) - len('\r\n'))/4
             assert \
                 pixels_left > 0, \
                 "not enough bytes left to chunk cmd, skeleton: %s, chunk_size: %s" % (
