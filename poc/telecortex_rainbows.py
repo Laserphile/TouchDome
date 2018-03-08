@@ -52,38 +52,14 @@ TELECORTEX_PID = 0x0483
 TELECORTEX_BAUD = 57600
 ACK_QUEUE_LEN = 3
 PANELS = 4
-DO_SINGLE = False
+PANEL_LENGTHS = [
+    333, 260, 333, 333
+]
 
+DO_SINGLE = True
 SHOW_RATES = True
 SHOW_STATS_GET = False
 SHOW_STATS_PROC = True
-
-
-# as of 2018-03-04, init looks like this:
-"""
-;SET: detected board: MK20DX128
-;SET: sram size: 65536
-;SET: Free SRAM 9707
-;Free SRAM 8087
-;initializing PANEL_00, data_pin: 6, clk_pin: 0, len: 333
-;Free SRAM 8087
-;initializing PANEL_01, data_pin: 7, clk_pin: 0, len: 260
-;Free SRAM 3991
-;initializing PANEL_02, data_pin: 8, clk_pin: 0, len: 333
-;Free SRAM 3991
-;initializing PANEL_03, data_pin: 9, clk_pin: 0, len: 333
-;SET: Panel Setup: OK
-;SET: pixel_count: 1259, panel_count: 4
-;SET: -> panel 0 len 333
-;SET: -> panel 1 len 260
-;SET: -> panel 2 len 333
-;SET: -> panel 3 len 333
-;SET: Queue Setup: OK
-;LOO: Free SRAM 4055
-IDLE
-;LOO: Free SRAM 4055
-IDLE
-"""
 
 # TODO: finish this class
 
@@ -188,7 +164,7 @@ class TelecortexSession(object):
         time.sleep(0.5)
 
         while self.ser.in_waiting:
-            self.ser.readline()
+            self.get_line()
 
         self.set_linenum(0)
 
@@ -263,6 +239,7 @@ class TelecortexSession(object):
                 line = line[:-1]
             if line[-1] == '\r':
                 line = line[:-1]
+        logging.info("received line: %s" % line)
         return line
 
     def parse_responses(self):
@@ -270,7 +247,6 @@ class TelecortexSession(object):
         idles_recvd = 0
         action_idle = True
         while True:
-            logging.info("received line: %s" % line)
             if line.startswith("IDLE"):
                 idles_recvd += 1
             elif line.startswith(";"):
@@ -293,6 +269,11 @@ class TelecortexSession(object):
                         logging.warn("GET_CMD: %5d, ENQD: %d" % (
                             get_cmd, enqd
                         ))
+                    if ENABLE_GET_DATA:
+                        with open(GET_DATA_FILE, 'w+') as data_file:
+                            data_file.write("%6s, %5d, %3d\n" % (
+                                get_cmd, enqd
+                            ))
                 elif re.match(self.re_loo_proc_stats, line):
                     match = re.search(self.re_loo_proc_stats, line).groupdict()
                     cmd = match.get('cmd')
@@ -302,6 +283,11 @@ class TelecortexSession(object):
                         logging.warn("CMD: %6s, PROC_CMD: %5d, PIXLS: %3d" % (
                             cmd, proc_cmd, pixls
                         ))
+                    if ENABLE_PROC_DATA:
+                        with open(PROC_DATA_FILE, 'a') as data_file:
+                            data_file.write("%6s, %5d, %3d\n" % (
+                                cmd, proc_cmd, pixls
+                            ))
                 elif re.match(self.re_set, line):
                     logging.warn(line)
                 elif re.match(self.re_enq, line):
@@ -442,10 +428,6 @@ def pix_array2text(*pixels):
     # ))
     logging.debug("pix_text: %s" % repr(response))
     return response
-
-PANEL_LENGTHS = [
-    333, 260, 333, 333
-]
 
 def main():
     # TODO: enumerate serial ports, select board by pid/vid

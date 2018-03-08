@@ -6,3 +6,4 @@ build/
 screenlog.0
 .python-version
 .rainbowz.log
+*.csv
