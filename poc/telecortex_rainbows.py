@@ -56,7 +56,7 @@ PANEL_LENGTHS = [
     333, 260, 333, 333
 ]
 
-DO_SINGLE = True
+DO_SINGLE = False
 SHOW_RATES = True
 SHOW_STATS_GET = False
 SHOW_STATS_PROC = True
@@ -96,8 +96,10 @@ class TelecortexSession(object):
     re_loo_proc_stats = (
         r"%s"
         r"CMD:\s+(?P<cmd>[A-Z] \d+),?\s*"
-        r"PROC_CMD:\s+(?P<proc_cmd>\d+),?\s*"
         r"PIXLS:\s+(?P<pixls>\d+),?\s*"
+        r"PROC_CMD:\s+(?P<proc_cmd>\d+),?\s*"
+        r"PARSE_CMD:\s+(?P<parse_cmd>\d+),?\s*"
+        r"PR_PA_CMD:\s+(?P<pr_pa_cmd>\d+),?\s*"
     ) % re_loo
     re_loo_get_cmd_time = r"%sget_cmd: (?P<time>[\d\.]+)" % re_loo
     re_loo_process_cmd_time = r"%sprocess_cmd: (?P<time>[\d\.]+)" % re_loo
@@ -277,11 +279,13 @@ class TelecortexSession(object):
                 elif re.match(self.re_loo_proc_stats, line):
                     match = re.search(self.re_loo_proc_stats, line).groupdict()
                     cmd = match.get('cmd')
-                    proc_cmd = int(match.get('proc_cmd'))
                     pixls = int(match.get('pixls'))
+                    proc_cmd = int(match.get('proc_cmd'))
+                    parse_cmd = int(match.get('parse_cmd'))
+                    pr_pa_cmd = int(match.get('pr_pa_cmd'))
                     if SHOW_STATS_PROC:
-                        logging.warn("CMD: %6s, PROC_CMD: %5d, PIXLS: %3d" % (
-                            cmd, proc_cmd, pixls
+                        logging.warn("CMD: %6s, PIXLS: %3d, PROC_CMD: %5d, PARSE_CMD: %5d, PR_PA_CMD: %5d" % (
+                            cmd, pixls, proc_cmd, parse_cmd, pr_pa_cmd
                         ))
                     if ENABLE_PROC_DATA:
                         with open(PROC_DATA_FILE, 'a') as data_file:
