@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
-print("Hey there pal, don't forget to `pip install -r poc/requirements.txt`")
+print("This has been moved to Python-Telecortex")
+exit()
 
 import base64
 import logging
