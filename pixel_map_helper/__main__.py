@@ -11,6 +11,7 @@
 import numpy as np
 import cv2
 import sys
+import os
 
 
 def main(input_file, output_file):
@@ -90,5 +91,7 @@ def execute_main_loop(img, led_canvas_array, output_file):
 
 if __name__ == '__main__':
     in_file = sys.argv[1] if len(sys.argv) > 1 else 'Images/h2o_sign.png'
+    if not os.path.isfile(in_file):
+        raise UserWarning("not a file: %s" % in_file)
     out_file = ('test_output/' + sys.argv[2]) if len(sys.argv) > 2 else None
     main(in_file, out_file)
