@@ -2,15 +2,14 @@
 # Using mouse clicks associate that pixel coordinate with an arbitrary pixel number.
 
 # TODO
-# Make a line tool that allows you to stretch an arbitrary number of pixels between two mouse clicks
 # Use a button press to mark down the transition to new groups of pixels
 # Make a "snap" grid that is a few pixels wide to allow for easier vertical/horizontal alignment
-# Allow resizing of loaded image (can easily do this manually beforehand)
 #
 
 # DONE
 # Make a line tool that allows you to stretch an arbitrary number of pixels between two mouse clicks
 # Allow resizing of loaded image (can easily do this manually beforehand)
+
 import numpy as np
 import cv2
 import sys
@@ -23,13 +22,16 @@ COLOUR_GREEN = (0, 255, 0)
 COLOUR_RED = (0, 0, 255)
 COLOUR_BLUE = (255, 0, 0)
 
+
 def main(input_file, output_file):
     led_canvas_array = []
     img = cv2.imread(input_file, 1)
 
     def handle_mouse_events(event, x, y, _flags, master_array):
         if event == cv2.EVENT_LBUTTONDOWN:
+            handle_left_mouse_click(x, y, master_array, COLOUR_BLUE)
         if event == cv2.EVENT_FLAG_RBUTTON:
+            handle_right_click(x, y, master_array, COLOUR_RED)
 
     def handle_left_mouse_click(x, y, master_array, color):
         create_circle(color, x, y)
@@ -43,11 +45,13 @@ def main(input_file, output_file):
         if number_of_leds < 2:
             print("can't draw less than 2 leds.")
             return
+        create_circle(COLOUR_GREEN, x, y)
 
         def handle_second_click(event, x2, y2, _flags, number_of_leds):
             if event == cv2.EVENT_LBUTTONDOWN:
                 print('actual first point:' + 'x(' + str(x) + ') ' + 'y(' + str(y) + ")")
                 print('actual last point:' + 'x(' + str(x2) + ') ' + 'y(' + str(y2) + ")")
+                create_circle(COLOUR_GREEN, x2, y2)
                 length_of_x_line = x2 - x
                 length_of_y_line = y2 - y
 
@@ -59,7 +63,7 @@ def main(input_file, output_file):
 
                 cv2.setMouseCallback(MAIN_WINDOW, handle_mouse_events, led_canvas_array)
 
-        cv2.setMouseCallback('image', handle_second_click, number_of_leds)
+        cv2.setMouseCallback(MAIN_WINDOW, handle_second_click, number_of_leds)
 
     def create_circle(color, x, y):
         cv2.circle(img, (x, y), 5, color, -1)
@@ -78,12 +82,14 @@ def main(input_file, output_file):
 
     cv2.namedWindow(MAIN_WINDOW, flags=window_flags)
     cv2.setMouseCallback(MAIN_WINDOW, handle_mouse_events, led_canvas_array)
+    cv2.createTrackbar(NUMBER_OF_LEDS_UI_NAME, MAIN_WINDOW, 2, 128, nothing)
 
     execute_main_loop(img, led_canvas_array, output_file)
 
 
 def execute_main_loop(img, led_canvas_array, output_file):
     while True:
+        cv2.imshow(MAIN_WINDOW, img)
         esc_key_pressed = (cv2.waitKey(20) & 0xFF) == 27
         if esc_key_pressed:
             filename = output_file if output_file is not None else input("Enter a file name:")
