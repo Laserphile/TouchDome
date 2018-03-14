@@ -12,6 +12,7 @@ import numpy as np
 import cv2
 import sys
 import os
+from pprint import pformat
 
 
 def main(input_file, output_file):
@@ -30,7 +31,7 @@ def main(input_file, output_file):
         create_circle(color, x, y)
         new_array = [x, y]
         master_array.append(new_array)
-        print(np.array(master_array))
+        print(pformat(master_array))
 
     def handle_right_click(x, y, master_array, color):
         number_of_leds = 0
