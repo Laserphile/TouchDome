@@ -35,8 +35,8 @@ def main(input_file, output_file):
 
     def handle_left_mouse_click(x, y, master_array, color):
         create_circle(color, x, y)
-        new_array = [x, y]
-        master_array.append(new_array)
+        new_coordinate = [x, y]
+        master_array.append(new_coordinate)
         print(pformat(master_array))
 
     def handle_right_click(x, y, master_array, color):
@@ -59,7 +59,11 @@ def main(input_file, output_file):
                     new_x = int(round(x + (length_of_x_line / (number_of_leds - 1)) * i))
                     new_y = int(round(y + (length_of_y_line / (number_of_leds - 1)) * i))
                     print(str(i + 1) + ' point:' + 'x(' + str(new_x) + ') ' + 'y(' + str(new_y) + ")")
-                    handle_left_mouse_click(new_x, new_y, master_array, color)
+                    # first dot in line is blue, rest are red
+                    if i == 0:
+                        handle_left_mouse_click(new_x, new_y, master_array, COLOUR_BLUE)
+                    else:
+                        handle_left_mouse_click(new_x, new_y, master_array, color)
 
                 cv2.setMouseCallback(MAIN_WINDOW, handle_mouse_events, led_canvas_array)
 
@@ -92,11 +96,13 @@ def execute_main_loop(img, led_canvas_array, output_file):
         cv2.imshow(MAIN_WINDOW, img)
         esc_key_pressed = (cv2.waitKey(20) & 0xFF) == 27
         if esc_key_pressed:
+            # esc_key_pressed
             filename = output_file if output_file is not None else input("Enter a file name:")
             np_array = np.array(led_canvas_array)
             np.savetxt(filename, np_array)
             np.save(filename, np_array)
             break
+
 
 
 if __name__ == '__main__':
