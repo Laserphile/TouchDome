@@ -3,6 +3,9 @@
 import numpy as np
 import cv2
 
+from pythonosc import udp_client
+from functools import cmp_to_key
+
 
 def draw_cross(img, center, length):
     cv2.line(img, tuple(np.subtract(center, (length, 0))), tuple(np.add(center, (length, 0))),
@@ -107,35 +110,41 @@ def matt_blob_detect(frame, detector):
     return keypoints, im_with_keypoints
 
 
-def calibrate(frame):
-    # print("i just calibrated baby", end='\r')
-    return cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-
 def to_black_and_white(frame):
-    # print("i just bw'd baby", end='\r')
     return cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+
+def calibrate(frame):
+    return to_black_and_white(frame)
 
 
 def subtract_frames(this_frame, other_frame):
-    # return this_frame - (0.85 * other_frame)
-
     assert(this_frame.shape == other_frame.shape)
-
-    # return 0.85 * this_frame - other_frame
-
-    # return np.fromiter(
-    #     (np.max(this_pixel - 0.85 * other_pixel, 0)
-    #         for this_pixel, other_pixel in np.nditer([this_frame, other_frame])),
-    #     dtype=np.uint8
-    # ).reshape(
-    #     this_frame.shape
-    # )
-    # result = np.max(this_frame - other_frame, 0)
-    # result = this_frame - other_frame
     result = np.maximum(this_frame - other_frame + 127,
                         [127]).reshape(this_frame.shape) - 127
     return result.astype(np.uint8)
+
+
+def send_keypoints(client, keypoints, camera_size):
+    if not keypoints:
+        print("no keypoints!")
+        return
+    biggest_keypoint = sorted(
+        keypoints,
+        key=cmp_to_key(lambda a, b: a.size - b.size)
+    )[-1]
+
+    x, y = biggest_keypoint.pt
+    size = biggest_keypoint.size
+    x_norm, y_norm = x / camera_size[0], y / camera_size[1]
+    size_norm = size / max(camera_size[0], camera_size[1])
+
+    for address, value in [
+        ("/lx/modulation/BlobDetect/macro1", x_norm),
+        ("/lx/modulation/BlobDetect/macro2", y_norm),
+        ("/lx/modulation/BlobDetect/macro3", size_norm),
+    ]:
+        client.send_message(address, value)
 
 
 if __name__ == '__main__':
@@ -151,6 +160,8 @@ if __name__ == '__main__':
     mode = 'r'
 
     blob_detector = initialise_blob_detect()
+
+    client = udp_client.SimpleUDPClient("127.0.0.1", 3030)
 
     while True:
         # Capture frame-by-frame
@@ -190,5 +201,7 @@ if __name__ == '__main__':
             bw_threshold_frame, blob_detector)
         cv2.imshow("keypoints", im_with_keypoints)
         print(f"keypoints: {keypoints}", end='\r')
+
+        send_keypoints(client, keypoints, camera_frame.shape)
 
         print('waiting on user input', end='\r')
